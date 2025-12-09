@@ -18,6 +18,14 @@ Sleep 2s
 Type " "
 Sleep 2s
 
+# toggle expanded weather grid
+Type "e"
+Sleep 3s
+
+# back to compact
+Type "e"
+Sleep 2s
+
 # move to time panel
 Type "l"
 Sleep 1s
