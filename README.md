@@ -2,6 +2,8 @@
 
 A terminal dashboard with useful information for thinking about New Zealand and its place in the world: local weather, world clocks, and currency conversion with a (beautiful) catppuccin mocha theme.
 
+![demo](demo.gif)
+
 ## Features
 
 - **NZ Weather** - Current conditions and 3-day forecast for NZ cities (Auckland, Wellington, Christchurch, Dunedin) with wttr-style grid view
