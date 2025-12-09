@@ -10,15 +10,15 @@ Set Theme "Catppuccin Mocha"
 # launch the app
 Type "nzi-cli"
 Enter
-Sleep 3s
+Sleep 5s
 
 # move focus to weather panel first
 Tab
-Sleep 1s
+Sleep 2s
 
 # toggle expanded weather grid (e only works when weather is focused)
-Type "e"
-Sleep 4s
+Type@100ms "e"
+Sleep 5s
 
 # cycle weather cities with spacebar
 Type " "
@@ -27,11 +27,11 @@ Type " "
 Sleep 2s
 
 # back to compact
-Type "e"
+Type@100ms "e"
 Sleep 2s
 
 # move to time panel
-Type "l"
+Type@100ms "l"
 Sleep 1s
 
 # cycle destination cities
