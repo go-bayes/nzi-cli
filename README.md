@@ -58,6 +58,7 @@ Type `/help` to show the help overlay.
 |-----|--------|
 | `Tab` / `↑↓←→` | Cycle between panels |
 | `h/j/k/l` | Cycle between panels (vim-style) |
+| `Esc` | Close help / cancel |
 | `q` | Quit application |
 
 ### Panel Controls (when focused)

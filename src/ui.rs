@@ -47,7 +47,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
 fn draw_help_overlay(frame: &mut Frame, area: Rect) {
     // centre the help box
     let help_width = 50.min(area.width.saturating_sub(4));
-    let help_height = 21.min(area.height.saturating_sub(4));
+    let help_height = 22.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(help_width)) / 2;
     let y = (area.height.saturating_sub(help_height)) / 2;
     let help_area = Rect::new(x, y, help_width, help_height);
@@ -60,7 +60,7 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
         .borders(Borders::ALL)
         .border_type(BorderType::Double)
         .border_style(Style::default().fg(catppuccin::MAUVE))
-        .title(Span::styled(" Help [?] to close ", Style::default().fg(catppuccin::MAUVE).add_modifier(Modifier::BOLD)));
+        .title(Span::styled(" Help [Esc] to close ", Style::default().fg(catppuccin::MAUVE).add_modifier(Modifier::BOLD)));
 
     let inner = block.inner(help_area);
     frame.render_widget(block, help_area);
@@ -76,6 +76,10 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
         Line::from(vec![
             Span::styled("  h/j/k/l   ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled("Cycle between panels (vim)", Style::default().fg(catppuccin::TEXT)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Esc       ", Style::default().fg(catppuccin::SAPPHIRE)),
+            Span::styled("Close help / cancel", Style::default().fg(catppuccin::TEXT)),
         ]),
         Line::from(vec![
             Span::styled("  q         ", Style::default().fg(catppuccin::SAPPHIRE)),

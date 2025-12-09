@@ -299,6 +299,16 @@ impl App {
 
     /// handle keyboard input
     pub fn handle_key(&mut self, key: crossterm::event::KeyCode) {
+        use crossterm::event::KeyCode;
+
+        // if help is showing, Esc closes it
+        if self.show_help {
+            if matches!(key, KeyCode::Esc) {
+                self.show_help = false;
+            }
+            return;
+        }
+
         // if typing a command, handle that first
         if !self.command_buffer.is_empty() {
             self.handle_command_input(key);
