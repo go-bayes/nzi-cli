@@ -11,7 +11,19 @@ A terminal dashboard with useful information for thinking about New Zealand and 
 - **Currency Converter** - Live exchange rates between NZD and major currencies
 - **Time Converter** - Convert times between NZ and overseas cities (Useful for arranging calls)
 
-Of course you can get this information from a browser but it's much nicer to have the key information at your fingertips, from the terminal.
+Of course you can get this information from a browser,  but it's much nicer to have the key information at your fingertips, from the terminal.
+
+## Use
+
+I built this because I enjoy the terminal. I wanted a tool that could grab useful information for me from the sublime comfort of the terminal. No browser menus to negotiate.
+
+After installing, just type `nzi-cli` into your terminal and the interface will spring forth to life!
+
+You can use this to:
+
+- Sketch an informal plan: travel/grants/communications (time zones)
+- Retain a mental model of the weather for friends/family overseas.
+- Imagine the life routines of others around the planet. 
 
 
 ## Installation
@@ -40,14 +52,17 @@ For Windows, download the installer from [rustup.rs](https://rustup.rs).
 
 Once Rust is installed, run the `cargo install` command above.
 
-## Usage
+## Use
 
 ```bash
 # launch the dashboard
 nzi-cli
 
 # show help overlay
-# press ? while running
+`/h`
+
+# leave help 
+`Esc` 
 ```
 
 ## Keybindings
@@ -63,7 +78,8 @@ Type `/help` to show the help overlay.
 | `Esc` | Close help / cancel |
 | `q` | Quit application |
 
-### Panel Controls (when focused)
+### Panel Controls (depending on focus)
+
 
 | Key | Action |
 |-----|--------|
@@ -84,6 +100,9 @@ Type `/help` to show the help overlay.
 ## Configuration
 
 Configuration is stored in `~/.config/nzi-cli/config.toml` and is created automatically on first run.
+
+Change the defaults to suit. `[home_city]` is the default overseas paired city.
+
 
 ```toml
 [current_city]
@@ -122,7 +141,7 @@ animation_speed_ms = 100
 - **Weather**: [Open-Meteo](https://open-meteo.com/) (free, no API key required)
 - **Exchange Rates**: [ExchangeRate-API](https://www.exchangerate-api.com/) (free tier)
 
-## Available Cities
+## Default Cities (change configure to suit using `/edit`)
 
 ### NZ Cities (Weather)
 Auckland, Wellington, Christchurch, Dunedin
@@ -133,7 +152,7 @@ London, New York, Los Angeles, Austin, Paris, Sydney, Tokyo, Singapore
 ## Requirements
 
 - Terminal with Unicode support (for braille map and icons)
-- Internet connection (for live weather and exchange rates; fallback rates available offline)
+- Internet connection (for live weather and exchange rates
 
 ## Building from Source
 
@@ -143,6 +162,12 @@ cd nzi-cli
 cargo build --release
 ./target/release/nzi-cli
 ```
+
+## Fine print
+
+- This tool will not work unless data can be fetched from its data sources.
+- The conversion is local -- you should not use the time converter for long range planning because day light savings will need to considered.
+
 
 ## Licence
 
