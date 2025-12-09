@@ -12,15 +12,19 @@ Type "nzi-cli"
 Enter
 Sleep 3s
 
+# move focus to weather panel first
+Tab
+Sleep 1s
+
+# toggle expanded weather grid (e only works when weather is focused)
+Type "e"
+Sleep 4s
+
 # cycle weather cities with spacebar
 Type " "
 Sleep 2s
 Type " "
 Sleep 2s
-
-# toggle expanded weather grid
-Type "e"
-Sleep 3s
 
 # back to compact
 Type "e"
