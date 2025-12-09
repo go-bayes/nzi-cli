@@ -1,9 +1,9 @@
 [package]
 name = "nzi-cli"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "New Zealand Around The World - a beautiful TUI connecting NZ to the world"
-authors = ["NZI CLI"]
+authors = ["Joseph A Bulbulia"]
 license = "MIT"
 
 [dependencies]
