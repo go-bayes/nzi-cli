@@ -1,0 +1,39 @@
+[package]
+name = "nzi-cli"
+version = "0.1.0"
+edition = "2024"
+description = "New Zealand Around The World - a beautiful TUI connecting NZ to the world"
+authors = ["NZI CLI"]
+license = "MIT"
+
+[dependencies]
+# TUI framework
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Configuration
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+dirs = "5"
+
+# Time handling
+chrono = "0.4"
+chrono-tz = "0.10"
+
+# HTTP client for exchange rates and weather
+reqwest = { version = "0.12", features = ["json"] }
+serde_json = "1"
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+# Utilities
+unicode-width = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
