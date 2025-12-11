@@ -1,5 +1,12 @@
 # Changelog
 
+# Changelog
+
+## 0.1.6
+- `/reload` replaces `/reset`; config reload no longer overwrites user settings.
+- Time conversion is now DST-aware for the entered time (handles ambiguous/invalid local times).
+- Clippy cleanups and map background rendering aligned with ratatui APIs.
+
 ## 0.1.5
 - Weather grid wind arrows now match each period’s actual direction; map panel background aligns with theme.
 - Cloudy/night cloud icons use the emoji variant for consistent sizing.

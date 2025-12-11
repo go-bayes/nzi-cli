@@ -95,7 +95,7 @@ Type `/help` to show the help overlay.
 | `/help` or `/h` | Show help overlay |
 | `/edit` or `/e` | Edit config in $EDITOR |
 | `/quit` or `/q` | Quit application |
-| `/reset` or `/r` | Reset config to defaults |
+| `/reload` (or `/r`) | Reload config from disk |
 
 ## Configuration
 

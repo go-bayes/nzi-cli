@@ -1,7 +1,7 @@
 //! time zone handling and conversion module
 //! supports any timezone via chrono-tz
 
-use chrono::{DateTime, FixedOffset, Local, Offset, Timelike, Utc};
+use chrono::{DateTime, FixedOffset, Local, LocalResult, Offset, TimeZone, Timelike, Utc};
 use chrono_tz::Tz;
 
 use crate::config::City;
@@ -54,7 +54,7 @@ impl CityTime {
     /// check if it's daytime (between 6am and 6pm)
     pub fn is_daytime(&self) -> bool {
         let hour = self.hour();
-        hour >= 6 && hour < 18
+        (6..18).contains(&hour)
     }
 }
 
@@ -81,7 +81,7 @@ impl TimezoneService {
         self.cities.iter().find(|c| c.city_code == code)
     }
 
-    /// convert a time from one city to another
+    /// convert a time from one city to another (DST-aware for the current date)
     pub fn convert_time(
         &self,
         from_city_code: &str,
@@ -92,22 +92,33 @@ impl TimezoneService {
         let from_city = self.get_city_time(from_city_code)?;
         let to_city = self.get_city_time(to_city_code)?;
 
-        let diff_hours = to_city.offset_hours - from_city.offset_hours;
-        let total_minutes = (hour as f32 * 60.0 + minute as f32 + diff_hours * 60.0) as i32;
+        let from_tz = from_city.datetime.timezone();
+        let to_tz = to_city.datetime.timezone();
+        let from_date = from_city.datetime.date_naive();
+        let naive_local = from_date.and_hms_opt(hour, minute, 0)?;
 
-        let day_offset = if total_minutes < 0 {
-            -1
-        } else if total_minutes >= 24 * 60 {
-            1
-        } else {
-            0
+        let from_datetime = match from_tz.from_local_datetime(&naive_local) {
+            LocalResult::Single(dt) => dt,
+            LocalResult::Ambiguous(first, second) => {
+                // prefer the earlier (usually standard) offset when ambiguous
+                let first_offset = first.offset().fix().local_minus_utc();
+                let second_offset = second.offset().fix().local_minus_utc();
+                if first_offset <= second_offset {
+                    first
+                } else {
+                    second
+                }
+            }
+            LocalResult::None => return None, // skipped hour (spring forward)
         };
 
-        let normalised_minutes = ((total_minutes % (24 * 60)) + 24 * 60) % (24 * 60);
-        let result_hour = (normalised_minutes / 60) as u32;
-        let result_minute = (normalised_minutes % 60) as u32;
+        let target = from_datetime.with_timezone(&to_tz);
+        let day_offset = target
+            .date_naive()
+            .signed_duration_since(from_datetime.date_naive())
+            .num_days() as i32;
 
-        Some((result_hour, result_minute, day_offset))
+        Some((target.hour(), target.minute(), day_offset))
     }
 }
 

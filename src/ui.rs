@@ -170,9 +170,9 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
             Span::styled("Quit application", Style::default().fg(catppuccin::TEXT)),
         ]),
         Line::from(vec![
-            Span::styled("  /reset    ", Style::default().fg(catppuccin::SAPPHIRE)),
+            Span::styled("  /reload   ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled(
-                "Reset config to defaults",
+                "Reload config from disk",
                 Style::default().fg(catppuccin::TEXT),
             ),
         ]),
@@ -199,7 +199,7 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App) {
 
     // render rainbow animated title
     let title = "NZ AROUND THE WORLD";
-    let subtitle = "";
+    let subtitle: Option<&str> = None;
     let rainbow = Theme::rainbow_colors();
     // slow down rainbow animation for more relaxing effect
     let slow_frame = app.animation_frame / 8;
@@ -212,7 +212,7 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App) {
             Style::default().fg(color).add_modifier(Modifier::BOLD),
         ));
     }
-    if !subtitle.is_empty() {
+    if let Some(subtitle) = subtitle {
         title_spans.push(Span::styled(
             format!(" ✦  {}", subtitle),
             Style::default().fg(catppuccin::SUBTEXT0),
@@ -225,7 +225,7 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     // version on the right
-    let version = format!("v0.1.5 ");
+    let version = "v0.1.5 ".to_string();
     let version_span = Span::styled(version, Style::default().fg(catppuccin::OVERLAY0));
 
     // center the title
@@ -1500,18 +1500,18 @@ fn draw_currency_detail(frame: &mut Frame, area: Rect, app: &App) {
     ]));
 
     // reverse rate
-    if let Some(rate) = converter.rate {
-        if rate > 0.0 {
-            lines.push(Line::from(vec![Span::styled(
-                format!(
-                    "1 {} ≈ {:.2} {}",
-                    converter.to_currency,
-                    1.0 / rate,
-                    converter.from_currency
-                ),
-                Theme::text_muted(),
-            )]));
-        }
+    if let Some(rate) = converter.rate
+        && rate > 0.0
+    {
+        lines.push(Line::from(vec![Span::styled(
+            format!(
+                "1 {} ≈ {:.2} {}",
+                converter.to_currency,
+                1.0 / rate,
+                converter.from_currency
+            ),
+            Theme::text_muted(),
+        )]));
     }
 
     // source with live indicator

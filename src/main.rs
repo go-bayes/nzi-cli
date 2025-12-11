@@ -84,13 +84,11 @@ async fn run_app(
         terminal.draw(|f| ui::draw(f, app))?;
 
         // handle events with timeout for animation
-        if crossterm::event::poll(tick_rate)? {
-            if let Event::Key(key) = event::read()? {
-                // only handle key press events, not release
-                if key.kind == KeyEventKind::Press {
-                    app.handle_key(key.code);
-                }
-            }
+        if crossterm::event::poll(tick_rate)?
+            && let Event::Key(key) = event::read()?
+            && key.kind == KeyEventKind::Press
+        {
+            app.handle_key(key.code);
         }
 
         // tick for animations and time updates

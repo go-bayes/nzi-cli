@@ -320,7 +320,7 @@ fn weather_description(code: i32) -> &'static str {
         66 | 67 => "Freezing rain",
         71 | 73 | 75 => "Snow",
         77 => "Snow grains",
-        80 | 81 | 82 => "Rain showers",
+        80..=82 => "Rain showers",
         85 | 86 => "Snow showers",
         95 => "Thunderstorm",
         96 | 99 => "Thunderstorm with hail",
@@ -352,10 +352,10 @@ impl WeatherService {
         let cache_key = location.to_lowercase();
 
         // check cache
-        if let Some(cached) = self.cache.get(&cache_key) {
-            if !cached.is_stale() {
-                return Ok(cached.clone());
-            }
+        if let Some(cached) = self.cache.get(&cache_key)
+            && !cached.is_stale()
+        {
+            return Ok(cached.clone());
         }
 
         // fetch from open-meteo
@@ -503,10 +503,7 @@ fn parse_hourly_to_periods(hourly: &OpenMeteoHourly) -> Vec<Vec<PeriodForecast>>
                     period: *period,
                     temp: avg_temp.round() as i32,
                     wind: max_wind.round() as i32,
-                    wind_dir: avg_wind_dir
-                        .map(wind_direction)
-                        .unwrap_or("?")
-                        .to_string(),
+                    wind_dir: avg_wind_dir.map(wind_direction).unwrap_or("?").to_string(),
                     icon: WeatherIcon::from_wmo_code(mode_code),
                 });
             }

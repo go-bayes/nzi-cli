@@ -194,10 +194,10 @@ impl App {
         self.update_time_conversion();
 
         // clear old status messages
-        if let Some((_, timestamp)) = &self.status_message {
-            if timestamp.elapsed() > Duration::from_secs(5) {
-                self.status_message = None;
-            }
+        if let Some((_, timestamp)) = &self.status_message
+            && timestamp.elapsed() > Duration::from_secs(5)
+        {
+            self.status_message = None;
         }
     }
 
@@ -214,7 +214,7 @@ impl App {
             .config
             .tracked_cities
             .iter()
-            .filter_map(|city| CityTime::from_city(city))
+            .filter_map(CityTime::from_city)
             .collect();
 
         // update timezone service with all cities
@@ -425,9 +425,11 @@ impl App {
                 self.show_help = !self.show_help;
             }
 
-            // 'R' (shift+r) resets config to defaults
+            // 'R' (shift+r) reloads config from disk
             KeyCode::Char('R') => {
-                self.reset_to_defaults();
+                if let Err(e) = self.reload_config() {
+                    self.set_status(format!("Failed to reload config: {}", e));
+                }
             }
 
             // 'E' (shift+e) opens config in editor
@@ -477,8 +479,10 @@ impl App {
             "/quit" | "/q" => {
                 self.running = false;
             }
-            "/reset" | "/r" => {
-                self.reset_to_defaults();
+            "/reload" | "/r" => {
+                if let Err(e) = self.reload_config() {
+                    self.set_status(format!("Failed to reload config: {}", e));
+                }
             }
             "/refresh" => {
                 self.weather_refresh_pending = true;
@@ -488,30 +492,6 @@ impl App {
                 self.set_status(format!("Unknown command: {}", self.command_buffer));
             }
         }
-    }
-
-    /// reset config to defaults and save
-    pub fn reset_to_defaults(&mut self) {
-        self.config = Config::default();
-        if let Err(e) = self.config.save() {
-            self.set_status(format!("Failed to save defaults: {}", e));
-        } else {
-            self.set_status("Config reset to defaults".to_string());
-        }
-        // reset converters to match new config
-        self.currency_converter = CurrencyConverter::new(
-            &self.config.current_city.currency,
-            &self.config.home_city.currency,
-        );
-        self.time_converter =
-            TimeConverter::new(&self.config.current_city.code, &self.config.home_city.code);
-        // reset weather defaults to Wellington grid view
-        self.weather_city_index = NZ_CITIES.iter().position(|c| c.code == "WLG").unwrap_or(0);
-        self.current_weather = None;
-        self.weather_error = None;
-        self.weather_expanded = true;
-        // trigger refresh
-        self.weather_refresh_pending = true;
     }
 
     /// check if currency rate refresh is needed
@@ -613,7 +593,7 @@ impl App {
         self.edit_config_requested = false;
     }
 
-    /// reload config from file (after editing)
+    /// reload config from disk and refresh dependent state
     pub fn reload_config(&mut self) -> Result<()> {
         self.config = Config::load()?;
         // reset converters to match new config
@@ -623,6 +603,21 @@ impl App {
         );
         self.time_converter =
             TimeConverter::new(&self.config.current_city.code, &self.config.home_city.code);
+
+        // keep weather focused on the configured NZ city when possible
+        self.weather_city_index = NZ_CITIES
+            .iter()
+            .position(|c| c.code == self.config.current_city.code)
+            .unwrap_or(0);
+        self.current_weather = None;
+        self.weather_error = None;
+        self.weather_expanded = true;
+        self.weather_refresh_pending = true;
+
+        // refresh time caches to reflect the new config immediately
+        self.update_times();
+        self.update_time_conversion();
+
         self.set_status("Config reloaded".to_string());
         Ok(())
     }

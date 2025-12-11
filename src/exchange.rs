@@ -59,10 +59,10 @@ impl ExchangeService {
         let key = Self::cache_key(from, to);
 
         // check cache first
-        if let Some(cached) = self.cache.get(&key) {
-            if !cached.is_stale() {
-                return Ok(cached.rate);
-            }
+        if let Some(cached) = self.cache.get(&key)
+            && !cached.is_stale()
+        {
+            return Ok(cached.rate);
         }
 
         // try to fetch fresh rate

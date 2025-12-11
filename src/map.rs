@@ -50,20 +50,11 @@ pub const NZ_CITIES: &[CityMarker] = &[
 ];
 
 /// canvas-based nz map widget with braille rendering
+#[derive(Default)]
 pub struct NzMapCanvas {
     tick: u64,
     highlight_city: Option<String>,
     focused: bool,
-}
-
-impl Default for NzMapCanvas {
-    fn default() -> Self {
-        Self {
-            tick: 0,
-            highlight_city: None,
-            focused: false,
-        }
-    }
 }
 
 impl NzMapCanvas {
@@ -95,10 +86,11 @@ impl Widget for NzMapCanvas {
         // ensure map background matches theme rather than terminal default
         for y in area.top()..area.bottom() {
             for x in area.left()..area.right() {
-                let cell = buf.get_mut(x, y);
-                cell.set_bg(catppuccin::BASE);
-                // clear symbol so background shows through consistently
-                cell.set_symbol(" ");
+                if let Some(cell) = buf.cell_mut((x, y)) {
+                    cell.set_bg(catppuccin::BASE);
+                    // clear symbol so background shows through consistently
+                    cell.set_symbol(" ");
+                }
             }
         }
 
@@ -201,7 +193,7 @@ impl Widget for NzMapCanvas {
                 for city in NZ_CITIES {
                     let is_highlighted = highlight_city
                         .as_ref()
-                        .map_or(false, |c| c.eq_ignore_ascii_case(city.code));
+                        .is_some_and(|c| c.eq_ignore_ascii_case(city.code));
 
                     let dot_color = if is_highlighted {
                         catppuccin::YELLOW
