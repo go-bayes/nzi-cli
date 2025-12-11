@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4
+- Dependency bumps: crossterm 0.29, dirs 6, thiserror 2, toml 0.9, unicode-width 0.2.2.
+- Binary default run remains `nzi`; minor UI/help polishing.
+
 ## 0.1.3
 - Weather grid centred with emoji-safe alignment; “Pt cldy” fits cleanly.
 - Currency stays at 0 until a live rate arrives; offline shows a message instead of fallback values; refresh is requested on swap/cycle/missing rate.

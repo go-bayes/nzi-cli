@@ -95,7 +95,10 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
         ]),
         Line::from(vec![
             Span::styled("  Esc       ", Style::default().fg(catppuccin::SAPPHIRE)),
-            Span::styled("Close help / cancel / exit edit", Style::default().fg(catppuccin::TEXT)),
+            Span::styled(
+                "Close help / cancel / exit edit",
+                Style::default().fg(catppuccin::TEXT),
+            ),
         ]),
         Line::from(vec![
             Span::styled("  q         ", Style::default().fg(catppuccin::SAPPHIRE)),
@@ -139,7 +142,10 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
         ]),
         Line::from(vec![
             Span::styled("  Hint      ", Style::default().fg(catppuccin::OVERLAY0)),
-            Span::styled("Title bars show keys (space, s, e)", Style::default().fg(catppuccin::SUBTEXT0)),
+            Span::styled(
+                "Title bars show keys (space, s, e)",
+                Style::default().fg(catppuccin::SUBTEXT0),
+            ),
         ]),
         Line::from(""),
         Line::from(vec![Span::styled(
@@ -219,7 +225,7 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     // version on the right
-    let version = format!("v0.1.3 ");
+    let version = format!("v0.1.4 ");
     let version_span = Span::styled(version, Style::default().fg(catppuccin::OVERLAY0));
 
     // center the title
@@ -761,11 +767,7 @@ fn center_pad(content: &str, width: usize) -> String {
     }
 }
 
-fn push_grid_line(
-    lines: &mut Vec<Line<'static>>,
-    padding: usize,
-    spans: Vec<Span<'static>>,
-) {
+fn push_grid_line(lines: &mut Vec<Line<'static>>, padding: usize, spans: Vec<Span<'static>>) {
     let mut padded = Vec::with_capacity(spans.len() + 1);
     if padding > 0 {
         padded.push(Span::raw(" ".repeat(padding)));
@@ -891,53 +893,65 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
 
                 // day header row (centred above columns)
                 // keep widths consistent with 4×13-char columns + 5 pipes (57 total)
-                push_grid_line(&mut lines, grid_padding, vec![
-                    Span::styled("┌", border),
-                    Span::styled(
-                        format!("{:─^55}", format!(" {} ", day_header)),
-                        Style::default().fg(catppuccin::TEXT),
-                    ),
-                    Span::styled("┐", border),
-                ]);
+                push_grid_line(
+                    &mut lines,
+                    grid_padding,
+                    vec![
+                        Span::styled("┌", border),
+                        Span::styled(
+                            format!("{:─^55}", format!(" {} ", day_header)),
+                            Style::default().fg(catppuccin::TEXT),
+                        ),
+                        Span::styled("┐", border),
+                    ],
+                );
 
                 // column headers
-                push_grid_line(&mut lines, grid_padding, vec![
-                    Span::styled("│", border),
-                    Span::styled(
-                        "   Morning   ",
-                        Style::default()
-                            .fg(catppuccin::PEACH)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled("│", border),
-                    Span::styled(
-                        "    Noon     ",
-                        Style::default()
-                            .fg(catppuccin::YELLOW)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled("│", border),
-                    Span::styled(
-                        "   Evening   ",
-                        Style::default()
-                            .fg(catppuccin::MAUVE)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled("│", border),
-                    Span::styled(
-                        "    Night    ",
-                        Style::default()
-                            .fg(catppuccin::LAVENDER)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled("│", border),
-                ]);
+                push_grid_line(
+                    &mut lines,
+                    grid_padding,
+                    vec![
+                        Span::styled("│", border),
+                        Span::styled(
+                            "   Morning   ",
+                            Style::default()
+                                .fg(catppuccin::PEACH)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled("│", border),
+                        Span::styled(
+                            "    Noon     ",
+                            Style::default()
+                                .fg(catppuccin::YELLOW)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled("│", border),
+                        Span::styled(
+                            "   Evening   ",
+                            Style::default()
+                                .fg(catppuccin::MAUVE)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled("│", border),
+                        Span::styled(
+                            "    Night    ",
+                            Style::default()
+                                .fg(catppuccin::LAVENDER)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled("│", border),
+                    ],
+                );
 
                 // separator
-                push_grid_line(&mut lines, grid_padding, vec![Span::styled(
-                    "├─────────────┼─────────────┼─────────────┼─────────────┤",
-                    border,
-                )]);
+                push_grid_line(
+                    &mut lines,
+                    grid_padding,
+                    vec![Span::styled(
+                        "├─────────────┼─────────────┼─────────────┼─────────────┤",
+                        border,
+                    )],
+                );
 
                 // content row: icon + description
                 let mut desc_spans = vec![Span::styled("│", border)];
