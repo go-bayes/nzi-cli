@@ -4,7 +4,6 @@ A terminal dashboard with useful information for thinking about New Zealand and 
 
 ![nzi static](images/nzi.png)
 
-
 ## Features
 
 - **NZ Weather** - Current conditions and 3-day forecast for NZ cities (Auckland, Wellington, Christchurch, Dunedin) with wttr-style grid view
@@ -12,34 +11,13 @@ A terminal dashboard with useful information for thinking about New Zealand and 
 - **Currency Converter** - Live exchange rates between NZD and major currencies
 - **Time Converter** - Convert times between NZ and overseas cities (Useful for arranging calls)
 
-Of course you can get this information from a browser,  but it's much nicer to have the key information at your fingertips, from the terminal.
-
-## Use
-
-I built this because I enjoy the terminal. I wanted a tool that could grab useful information for me from the sublime comfort of the terminal. No browser menus to negotiate.
-
-After installing, run `nzi` in your terminal and the interface will spring forth to life!
-
-You can use this to:
-
-- Sketch an informal plan: travel/grants/communications (time zones)
-- Retain a mental model of the weather for friends/family overseas.
-- Imagine the life routines of others around the planet. 
-
+Of course, you can get this information from a browser, but it's much nicer to have the key information from the terminal.
 
 ## Installation
 
-### Install using cargo
+### Install Rust (if you don't have it)
 
-If you have Rust installed:
-
-```bash
-cargo install --git https://github.com/go-bayes/nzi-cli
-```
-
-### Installing Rust
-
-If you don't have Rust, install it first:
+If you don't have Rust, install it:
 
 ```bash
 # macOS / Linux
@@ -51,9 +29,27 @@ source ~/.cargo/env
 
 For Windows, download the installer from [rustup.rs](https://rustup.rs).
 
-Once Rust is installed, run the `cargo install` command above.
+
+### Install using cargo
+
+Once Rust is installed, you can install/update this application by running:
+
+```bash
+cargo install --git https://github.com/go-bayes/nzi-cli
+```
 
 ## Use
+
+After installing, from your terminal just type `nzi` and then hit return/enter: the interface will spring forth to life.
+
+You can use this to:
+
+- Sketch an informal plan: travel/grants/communications (time zones)
+- Retain a mental model of the weather for friends/family overseas.
+- Imagine the life routines of others around the planet. 
+
+
+
 
 ```bash
 # launch the dashboard
@@ -63,7 +59,10 @@ nzi
 `/h`
 
 # leave help 
-`Esc` 
+`Esc`
+
+# quit interface/return to terminal 
+q
 ```
 
 ## Keybindings
