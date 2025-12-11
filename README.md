@@ -15,7 +15,7 @@ Of course, you can get this information from a browser, but it's much nicer from
 
 ## Installation
 
-### Install Rust (if you don't have it/ otherwise skip)
+### Install Rust (if you don't have it)
 
 
 ```bash
