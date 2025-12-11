@@ -128,13 +128,16 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
         Line::from(vec![
             Span::styled("  e         ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled(
-                "Edit (time/currency panels)",
+                "Edit (time/currency panels, arrows to adjust)",
                 Style::default().fg(catppuccin::TEXT),
             ),
         ]),
         Line::from(vec![
             Span::styled("  0-9       ", Style::default().fg(catppuccin::SAPPHIRE)),
-            Span::styled("Enter time/amount", Style::default().fg(catppuccin::TEXT)),
+            Span::styled(
+                "Direct entry (time in normal mode, amount in currency)",
+                Style::default().fg(catppuccin::TEXT),
+            ),
         ]),
         Line::from(vec![
             Span::styled("  Esc       ", Style::default().fg(catppuccin::SAPPHIRE)),

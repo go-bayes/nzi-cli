@@ -1,4 +1,4 @@
-# nzi-cli
+# nzi
 
 A terminal dashboard with useful information for thinking about New Zealand and its place in the world: local weather, world clocks, and currency conversion. 
 
@@ -9,15 +9,14 @@ A terminal dashboard with useful information for thinking about New Zealand and 
 - **NZ Weather** - Current conditions and 3-day forecast for NZ cities (Auckland, Wellington, Christchurch, Dunedin) with wttr-style grid view
 - **World Clocks** - Track time across Wellington and your home city (London, NYC, LA, Austin, Paris, Sydney, Tokyo, Singapore)
 - **Currency Converter** - Live exchange rates between NZD and major currencies
-- **Time Converter** - Convert times between NZ and overseas cities (Useful for arranging calls)
+- **Time Converter** - Convert times between NZ and overseas cities (Useful for arranging meetings)
 
-Of course, you can get this information from a browser, but it's much nicer to have the key information from the terminal.
+Of course, you can get this information from a browser, but it's much nicer from the comfort of the terminal.
 
 ## Installation
 
-### Install Rust (if you don't have it)
+### Install Rust (if you don't have it/ otherwise skip)
 
-If you don't have Rust, install it:
 
 ```bash
 # macOS / Linux
@@ -38,11 +37,11 @@ Once Rust is installed, you can install/update this application by running:
 cargo install --git https://github.com/go-bayes/nzi-cli
 ```
 
-## Use
+## Usage
 
 After installing, from your terminal just type `nzi` and then hit return/enter: the interface will spring forth to life.
 
-You can use this to:
+Use it to
 
 - Sketch an informal plan: travel/grants/communications (time zones)
 - Retain a mental model of the weather for friends/family overseas.
@@ -86,7 +85,7 @@ Type `/help` to show the help overlay.
 | `Space` | Cycle city/currency |
 | `s` | Swap (time/currency) / toggle weather view |
 | `e` | Edit (time/currency) |
-| `0-9` | Enter time/amount |
+| `0-9` | Direct entry (time in normal mode, amount in currency) |
 
 ### Slash Commands
 
