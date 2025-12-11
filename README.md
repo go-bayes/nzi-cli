@@ -4,7 +4,6 @@ A terminal dashboard with useful information for thinking about New Zealand and 
 
 ![nzi static](images/nzi.png)
 
-![demo](demo.gif)
 
 ## Features
 
