@@ -225,7 +225,7 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     // version on the right
-    let version = format!("v0.1.4 ");
+    let version = format!("v0.1.5 ");
     let version_span = Span::styled(version, Style::default().fg(catppuccin::OVERLAY0));
 
     // center the title
@@ -1015,8 +1015,9 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
                         } else {
                             catppuccin::GREEN
                         };
+                        let wind_arrow = wind_arrow(&p.wind_dir);
                         wind_spans.push(Span::styled(
-                            center_pad(&format!("↓ {} km/h", p.wind), 13),
+                            center_pad(&format!("{} {} km/h", wind_arrow, p.wind), 13),
                             Style::default().fg(wind_color),
                         ));
                     } else {

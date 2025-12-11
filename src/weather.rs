@@ -27,8 +27,8 @@ impl WeatherIcon {
             (Self::Sunny, true) => "☀",
             (Self::Sunny, false) => "☾",
             (Self::PartlyCloudy, true) => "⛅",
-            (Self::PartlyCloudy, false) => "☁",
-            (Self::Cloudy, _) => "☁",
+            (Self::PartlyCloudy, false) => "☁️",
+            (Self::Cloudy, _) => "☁️",
             (Self::Fog, _) => "🌫",
             (Self::Drizzle, _) => "🌦",
             (Self::Rain, _) => "🌧",
@@ -82,6 +82,7 @@ pub struct PeriodForecast {
     pub period: TimeOfDay,
     pub temp: i32,
     pub wind: i32,
+    pub wind_dir: String,
     pub icon: WeatherIcon,
 }
 
@@ -162,6 +163,7 @@ struct OpenMeteoHourly {
     time: Vec<String>,
     temperature_2m: Vec<f64>,
     wind_speed_10m: Vec<f64>,
+    wind_direction_10m: Vec<f64>,
     weather_code: Vec<i32>,
 }
 
@@ -282,6 +284,28 @@ fn wind_direction(degrees: f64) -> &'static str {
     dirs[idx]
 }
 
+/// average a collection of wind directions (degrees) safely on a circle
+fn average_wind_direction(degrees: &[f64]) -> Option<f64> {
+    if degrees.is_empty() {
+        return None;
+    }
+
+    let (sin_sum, cos_sum) = degrees.iter().fold((0.0, 0.0), |(s, c), deg| {
+        let rad = deg.to_radians();
+        (s + rad.sin(), c + rad.cos())
+    });
+
+    if sin_sum == 0.0 && cos_sum == 0.0 {
+        return None;
+    }
+
+    let mut mean = sin_sum.atan2(cos_sum).to_degrees();
+    if mean < 0.0 {
+        mean += 360.0;
+    }
+    Some(mean)
+}
+
 /// weather description from wmo code
 fn weather_description(code: i32) -> &'static str {
     match code {
@@ -346,7 +370,7 @@ impl WeatherService {
 
         // open-meteo api - fast and free, with 3-day forecast + hourly for period breakdown
         let url = format!(
-            "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,wind_speed_10m_max,weather_code&hourly=temperature_2m,wind_speed_10m,weather_code&timezone=auto&forecast_days=3",
+            "https://api.open-meteo.com/v1/forecast?latitude={}&longitude={}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_direction_10m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min,wind_speed_10m_max,weather_code&hourly=temperature_2m,wind_speed_10m,wind_direction_10m,weather_code&timezone=auto&forecast_days=3",
             lat, lon
         );
 
@@ -447,13 +471,19 @@ fn parse_hourly_to_periods(hourly: &OpenMeteoHourly) -> Vec<Vec<PeriodForecast>>
             // average temperature and max wind for the period
             let mut temps = Vec::new();
             let mut winds = Vec::new();
+            let mut wind_dirs = Vec::new();
             let mut codes = Vec::new();
 
             for hour in start..end {
                 let idx = day_offset + hour;
-                if idx < hourly.temperature_2m.len() {
+                if idx < hourly.temperature_2m.len()
+                    && idx < hourly.wind_speed_10m.len()
+                    && idx < hourly.wind_direction_10m.len()
+                    && idx < hourly.weather_code.len()
+                {
                     temps.push(hourly.temperature_2m[idx]);
                     winds.push(hourly.wind_speed_10m[idx]);
+                    wind_dirs.push(hourly.wind_direction_10m[idx]);
                     codes.push(hourly.weather_code[idx]);
                 }
             }
@@ -461,6 +491,7 @@ fn parse_hourly_to_periods(hourly: &OpenMeteoHourly) -> Vec<Vec<PeriodForecast>>
             if !temps.is_empty() {
                 let avg_temp = temps.iter().sum::<f64>() / temps.len() as f64;
                 let max_wind = winds.iter().cloned().fold(0.0_f64, f64::max);
+                let avg_wind_dir = average_wind_direction(&wind_dirs);
                 // use most common weather code in period
                 let mode_code = codes
                     .iter()
@@ -472,6 +503,10 @@ fn parse_hourly_to_periods(hourly: &OpenMeteoHourly) -> Vec<Vec<PeriodForecast>>
                     period: *period,
                     temp: avg_temp.round() as i32,
                     wind: max_wind.round() as i32,
+                    wind_dir: avg_wind_dir
+                        .map(wind_direction)
+                        .unwrap_or("?")
+                        .to_string(),
                     icon: WeatherIcon::from_wmo_code(mode_code),
                 });
             }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5
+- Weather grid wind arrows now match each period’s actual direction; map panel background aligns with theme.
+- Cloudy/night cloud icons use the emoji variant for consistent sizing.
+- Version bump to 0.1.5.
+
 ## 0.1.4
 - Dependency bumps: crossterm 0.29, dirs 6, thiserror 2, toml 0.9, unicode-width 0.2.2.
 - Binary default run remains `nzi`; minor UI/help polishing.

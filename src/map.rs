@@ -92,6 +92,16 @@ impl Widget for NzMapCanvas {
         let rainbow = Theme::rainbow_colors();
         let tick = self.tick as usize;
 
+        // ensure map background matches theme rather than terminal default
+        for y in area.top()..area.bottom() {
+            for x in area.left()..area.right() {
+                let cell = buf.get_mut(x, y);
+                cell.set_bg(catppuccin::BASE);
+                // clear symbol so background shows through consistently
+                cell.set_symbol(" ");
+            }
+        }
+
         // rainbow colour cycling for the map coastline (like nzme-cli)
         let map_color = rainbow[(tick / 3) % rainbow.len()];
 
@@ -158,11 +168,13 @@ impl Widget for NzMapCanvas {
         let canvas = Canvas::default()
             .block(
                 Block::default()
+                    .style(Style::default().bg(catppuccin::BASE))
                     .borders(Borders::ALL)
                     .border_type(border_type)
                     .border_style(Style::default().fg(border_color))
                     .title(Span::styled(" 🥝 Aotearoa ", title_style)),
             )
+            .background_color(catppuccin::BASE)
             .marker(Marker::Braille)
             .x_bounds([NZ_LON_MIN, NZ_LON_MAX])
             .y_bounds([NZ_LAT_MIN, NZ_LAT_MAX])
