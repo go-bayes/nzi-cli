@@ -47,9 +47,6 @@ Use it to
 - Retain a mental model of the weather for friends/family overseas.
 - Imagine the life routines of others around the planet. 
 
-
-
-
 ```bash
 # launch the dashboard
 nzi
@@ -164,9 +161,11 @@ cargo build --release
 
 ## Fine print
 
-- This tool will not work unless data can be fetched from its data sources.
-- The conversion is local -- you should not use the time converter for long range planning because day light savings will need to considered.
+### Weaknesses
 
+-  Time/DST handling uses chrono-tz for DST-aware conversion of entered times (good), but assumes "today" as the date. Be aware there's no way to pick arbitrary dates yet; ambiguous/invalid local times are silently dropped.
+-  No validation of config; malformed citycodes/timezones could propogate.
+-  Weather lacks staleness checks, so make sure you refresh with /r if its been sitting around a while.
 
 ## Licence
 
