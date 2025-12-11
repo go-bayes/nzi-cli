@@ -1,9 +1,17 @@
 # Changelog
 
+## 0.1.3
+- Weather grid centred with emoji-safe alignment; “Pt cldy” fits cleanly.
+- Currency stays at 0 until a live rate arrives; offline shows a message instead of fallback values; refresh is requested on swap/cycle/missing rate.
+- Keybindings: space cycles cities/pairs, s swaps or toggles weather view, e enters edit for time/currency (Esc exits); titles/help updated.
+- Binary is now named `nzi` (default run target) for quicker launch.
+- Version bump to 0.1.3.
+
 ## 0.1.2
 - Default to expanded weather grid on Wellington with New York/USD comparisons.
 - Weather, time, and currency layout now scales to terminal size and keeps weather visible in splits.
 - Version bump and UI header updated.
+- Keybindings: space cycles cities/pairs, s swaps or toggles weather view, e enters edit for time/currency.
 
 ## 0.1.1
 - Initial release of the NZI CLI with weather, map, time, and currency panels. 

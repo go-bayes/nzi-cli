@@ -10,6 +10,8 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Paragraph, Wrap},
 };
 
+use unicode_width::UnicodeWidthStr;
+
 use crate::app::{App, Focus, InputMode};
 use crate::map::{NZ_CITIES, NzMapCanvas, Sparkles};
 use crate::theme::{Theme, catppuccin};
@@ -93,7 +95,7 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
         ]),
         Line::from(vec![
             Span::styled("  Esc       ", Style::default().fg(catppuccin::SAPPHIRE)),
-            Span::styled("Close help / cancel", Style::default().fg(catppuccin::TEXT)),
+            Span::styled("Close help / cancel / exit edit", Style::default().fg(catppuccin::TEXT)),
         ]),
         Line::from(vec![
             Span::styled("  q         ", Style::default().fg(catppuccin::SAPPHIRE)),
@@ -116,7 +118,14 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
         Line::from(vec![
             Span::styled("  s         ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled(
-                "Swap (time/currency)",
+                "Swap (time/currency) / toggle weather view",
+                Style::default().fg(catppuccin::TEXT),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("  e         ", Style::default().fg(catppuccin::SAPPHIRE)),
+            Span::styled(
+                "Edit (time/currency panels)",
                 Style::default().fg(catppuccin::TEXT),
             ),
         ]),
@@ -125,11 +134,12 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
             Span::styled("Enter time/amount", Style::default().fg(catppuccin::TEXT)),
         ]),
         Line::from(vec![
-            Span::styled("  e         ", Style::default().fg(catppuccin::SAPPHIRE)),
-            Span::styled(
-                "Toggle weather grid view",
-                Style::default().fg(catppuccin::TEXT),
-            ),
+            Span::styled("  Esc       ", Style::default().fg(catppuccin::SAPPHIRE)),
+            Span::styled("Leave edit", Style::default().fg(catppuccin::TEXT)),
+        ]),
+        Line::from(vec![
+            Span::styled("  Hint      ", Style::default().fg(catppuccin::OVERLAY0)),
+            Span::styled("Title bars show keys (space, s, e)", Style::default().fg(catppuccin::SUBTEXT0)),
         ]),
         Line::from(""),
         Line::from(vec![Span::styled(
@@ -209,7 +219,7 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     // version on the right
-    let version = format!("v0.1.2 ");
+    let version = format!("v0.1.3 ");
     let version_span = Span::styled(version, Style::default().fg(catppuccin::OVERLAY0));
 
     // center the title
@@ -356,7 +366,7 @@ fn draw_map_panel(frame: &mut Frame, area: Rect, app: &App) {
 /// draw weather panel with current conditions and forecast-style layout (compact view)
 fn draw_weather_panel(frame: &mut Frame, area: Rect, app: &App) {
     let focused = app.focus == Focus::Weather;
-    let block = styled_block("🌤 Weather [e:grid] [space:city]", focused);
+    let block = styled_block("🌤 Weather [s:view] [space:city]", focused);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -715,7 +725,7 @@ fn wind_arrow(dir: &str) -> &'static str {
 fn wttr_desc(icon: crate::weather::WeatherIcon) -> &'static str {
     match icon {
         crate::weather::WeatherIcon::Sunny => "Sunny",
-        crate::weather::WeatherIcon::PartlyCloudy => "Partly cloudy",
+        crate::weather::WeatherIcon::PartlyCloudy => "Pt cldy",
         crate::weather::WeatherIcon::Cloudy => "Cloudy",
         crate::weather::WeatherIcon::Fog => "Fog",
         crate::weather::WeatherIcon::Drizzle => "Drizzle",
@@ -727,10 +737,47 @@ fn wttr_desc(icon: crate::weather::WeatherIcon) -> &'static str {
     }
 }
 
+/// pad icon to a target display width (handles wide emoji)
+fn pad_icon(icon: &str, target: usize) -> String {
+    let width = UnicodeWidthStr::width(icon);
+    if width >= target {
+        icon.to_string()
+    } else {
+        let padding = " ".repeat(target.saturating_sub(width));
+        format!("{}{}", icon, padding)
+    }
+}
+
+/// centre text using display width for emoji-safe alignment
+fn center_pad(content: &str, width: usize) -> String {
+    let w = UnicodeWidthStr::width(content);
+    if w >= width {
+        content.to_string()
+    } else {
+        let total = width - w;
+        let left = total / 2;
+        let right = total - left;
+        format!("{}{}{}", " ".repeat(left), content, " ".repeat(right))
+    }
+}
+
+fn push_grid_line(
+    lines: &mut Vec<Line<'static>>,
+    padding: usize,
+    spans: Vec<Span<'static>>,
+) {
+    let mut padded = Vec::with_capacity(spans.len() + 1);
+    if padding > 0 {
+        padded.push(Span::raw(" ".repeat(padding)));
+    }
+    padded.extend(spans);
+    lines.push(Line::from(padded));
+}
+
 /// draw weather panel with wttr-style 3-day grid
 fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
     let focused = app.focus == Focus::Weather;
-    let block = styled_block("🌤 Weather [e:compact] [space:city]", focused);
+    let block = styled_block("🌤 Weather [s:view] [space:city]", focused);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -747,6 +794,12 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
         Some(w) => {
             let mut lines: Vec<Line> = vec![];
             let border = Style::default().fg(catppuccin::SURFACE2);
+            let grid_width: u16 = 57;
+            let grid_padding = if inner.width > grid_width {
+                ((inner.width - grid_width) / 2) as usize
+            } else {
+                0
+            };
 
             // current conditions header with ASCII art (wttr style)
             let current_art = weather_ascii_art(w.icon, w.is_day);
@@ -837,17 +890,18 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
                 };
 
                 // day header row (centred above columns)
-                lines.push(Line::from(vec![
+                // keep widths consistent with 4×13-char columns + 5 pipes (57 total)
+                push_grid_line(&mut lines, grid_padding, vec![
                     Span::styled("┌", border),
                     Span::styled(
-                        format!("{:─^58}", format!(" {} ", day_header)),
+                        format!("{:─^55}", format!(" {} ", day_header)),
                         Style::default().fg(catppuccin::TEXT),
                     ),
                     Span::styled("┐", border),
-                ]));
+                ]);
 
                 // column headers
-                lines.push(Line::from(vec![
+                push_grid_line(&mut lines, grid_padding, vec![
                     Span::styled("│", border),
                     Span::styled(
                         "   Morning   ",
@@ -877,13 +931,13 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::styled("│", border),
-                ]));
+                ]);
 
                 // separator
-                lines.push(Line::from(vec![Span::styled(
+                push_grid_line(&mut lines, grid_padding, vec![Span::styled(
                     "├─────────────┼─────────────┼─────────────┼─────────────┤",
                     border,
-                )]));
+                )]);
 
                 // content row: icon + description
                 let mut desc_spans = vec![Span::styled("│", border)];
@@ -894,18 +948,19 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
                         let is_day = matches!(target, TimeOfDay::Morning | TimeOfDay::Noon);
                         let icon = p.icon.icon(is_day);
                         let desc = wttr_desc(p.icon);
-                        // icon + truncated description
-                        let cell = format!("{} {}", icon, &desc[..desc.len().min(9)]);
+                        // pad icon to align with text columns
+                        let icon_padded = pad_icon(icon, 2);
+                        let cell = format!("{} {}", icon_padded, &desc[..desc.len().min(9)]);
                         desc_spans.push(Span::styled(
-                            format!("{:^13}", cell),
+                            center_pad(&cell, 13),
                             Style::default().fg(catppuccin::TEXT),
                         ));
                     } else {
-                        desc_spans.push(Span::styled("     --      ", Theme::text_muted()));
+                        desc_spans.push(Span::styled(center_pad("--", 13), Theme::text_muted()));
                     }
                     desc_spans.push(Span::styled("│", border));
                 }
-                lines.push(Line::from(desc_spans));
+                push_grid_line(&mut lines, grid_padding, desc_spans);
 
                 // content row: temp
                 let mut temp_spans = vec![Span::styled("│", border)];
@@ -923,15 +978,15 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
                             catppuccin::SAPPHIRE
                         };
                         temp_spans.push(Span::styled(
-                            format!("{:^13}", format!("{} °C", p.temp)),
+                            center_pad(&format!("{} °C", p.temp), 13),
                             Style::default().fg(temp_color),
                         ));
                     } else {
-                        temp_spans.push(Span::styled("     --      ", Theme::text_muted()));
+                        temp_spans.push(Span::styled(center_pad("--", 13), Theme::text_muted()));
                     }
                     temp_spans.push(Span::styled("│", border));
                 }
-                lines.push(Line::from(temp_spans));
+                push_grid_line(&mut lines, grid_padding, temp_spans);
 
                 // content row: wind
                 let mut wind_spans = vec![Span::styled("│", border)];
@@ -947,28 +1002,22 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
                             catppuccin::GREEN
                         };
                         wind_spans.push(Span::styled(
-                            format!("{:^13}", format!("↓ {} km/h", p.wind)),
+                            center_pad(&format!("↓ {} km/h", p.wind), 13),
                             Style::default().fg(wind_color),
                         ));
                     } else {
-                        wind_spans.push(Span::styled("     --      ", Theme::text_muted()));
+                        wind_spans.push(Span::styled(center_pad("--", 13), Theme::text_muted()));
                     }
                     wind_spans.push(Span::styled("│", border));
                 }
-                lines.push(Line::from(wind_spans));
+                push_grid_line(&mut lines, grid_padding, wind_spans);
 
                 // bottom of day section
-                if day_idx < 2 {
-                    lines.push(Line::from(vec![Span::styled(
-                        "└─────────────┴─────────────┴─────────────┴─────────────┘",
-                        border,
-                    )]));
-                } else {
-                    lines.push(Line::from(vec![Span::styled(
-                        "└─────────────┴─────────────┴─────────────┴─────────────┘",
-                        border,
-                    )]));
-                }
+                let bottom = Span::styled(
+                    "└─────────────┴─────────────┴─────────────┴─────────────┘",
+                    border,
+                );
+                push_grid_line(&mut lines, grid_padding, vec![bottom]);
             }
 
             // source
@@ -1038,7 +1087,7 @@ fn month_name(month: &str) -> &'static str {
 /// draw time panel - simplified NZ → overseas city
 fn draw_time_panel(frame: &mut Frame, area: Rect, app: &App) {
     let focused = app.focus == Focus::TimeConvert;
-    let block = styled_block("🕐 Time [space:city] [s:swap]", focused);
+    let block = styled_block("🕐 Time [space:city] [s:swap] [e:edit/Esc]", focused);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -1179,6 +1228,10 @@ fn draw_time_panel(frame: &mut Frame, area: Rect, app: &App) {
 
     let para = Paragraph::new(lines);
     frame.render_widget(para, inner);
+
+    if app.input_mode == InputMode::EditingTime {
+        draw_editing_indicator(frame, area);
+    }
 }
 
 /// format a city time line with optional marker
@@ -1369,7 +1422,7 @@ fn draw_time_converter_compact(frame: &mut Frame, area: Rect, app: &App) {
 /// draw currency panel with bidirectional conversion
 fn draw_currency_panel(frame: &mut Frame, area: Rect, app: &App) {
     let focused = app.focus == Focus::Currency;
-    let block = styled_block("💱 Currency [space:cycle] [s:swap]", focused);
+    let block = styled_block("💱 Currency [space:cycle] [s:swap] [e:edit/Esc]", focused);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -1406,8 +1459,10 @@ fn draw_currency_detail(frame: &mut Frame, area: Rect, app: &App) {
             "1 {} = {:.4} {}",
             converter.from_currency, r, converter.to_currency
         )
-    } else {
+    } else if app.is_online {
         "loading...".to_string()
+    } else {
+        "no live rate (offline)".to_string()
     };
 
     lines.push(Line::from(vec![

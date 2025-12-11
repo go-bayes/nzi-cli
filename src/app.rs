@@ -246,8 +246,9 @@ impl App {
                 self.set_status(format!("Rate: 1 {} = {:.4} {}", from, rate, to));
             }
             Err(e) => {
-                // may still have fallback rate, but mark not fully online
-                self.set_status(format!("Rate error: {}", e));
+                self.is_online = false;
+                self.currency_converter.needs_refresh = true;
+                self.set_status(format!("Rate error: {} (offline)", e));
             }
         }
     }
@@ -334,6 +335,7 @@ impl App {
             KeyCode::BackTab => self.focus = self.focus.prev(),
 
             KeyCode::Enter => self.enter_edit_mode(),
+            KeyCode::Char('e') => self.enter_edit_mode(),
 
             // hjkl for panel navigation (vim-style, same as arrows)
             KeyCode::Char('h') => self.focus = self.focus.left(),
@@ -341,7 +343,7 @@ impl App {
             KeyCode::Char('j') => self.focus = self.focus.down(),
             KeyCode::Char('k') => self.focus = self.focus.up(),
 
-            // swap shortcut
+            // swap/toggle shortcut
             KeyCode::Char('s') => self.handle_swap(),
 
             // now shortcut for time converter
@@ -416,11 +418,6 @@ impl App {
                     }
                     _ => {}
                 }
-            }
-
-            // 'e' toggles expanded weather view when on weather panel
-            KeyCode::Char('e') if self.focus == Focus::Weather => {
-                self.weather_expanded = !self.weather_expanded;
             }
 
             // '?' toggles help overlay
@@ -533,6 +530,9 @@ impl App {
                 self.time_converter.swap_cities();
                 self.update_time_conversion();
             }
+            Focus::Weather => {
+                self.weather_expanded = !self.weather_expanded;
+            }
             _ => {}
         }
     }
@@ -584,11 +584,20 @@ impl App {
     fn enter_edit_mode(&mut self) {
         match self.focus {
             Focus::Currency => {
-                self.input_mode = InputMode::EditingCurrency;
-                self.currency_converter.editing = true;
+                if self.input_mode == InputMode::EditingCurrency {
+                    self.input_mode = InputMode::Normal;
+                    self.currency_converter.editing = false;
+                } else {
+                    self.input_mode = InputMode::EditingCurrency;
+                    self.currency_converter.editing = true;
+                }
             }
             Focus::TimeConvert => {
-                self.input_mode = InputMode::EditingTime;
+                if self.input_mode == InputMode::EditingTime {
+                    self.input_mode = InputMode::Normal;
+                } else {
+                    self.input_mode = InputMode::EditingTime;
+                }
             }
             _ => {}
         }

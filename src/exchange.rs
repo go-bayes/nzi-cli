@@ -171,7 +171,7 @@ impl Default for CurrencyConverter {
             input_buffer: "100".to_string(),
             editing: false,
             pair_index: 0,
-            needs_refresh: false,
+            needs_refresh: true,
         }
     }
 }
@@ -181,12 +181,14 @@ impl CurrencyConverter {
         Self {
             from_currency: from.to_uppercase(),
             to_currency: to.to_uppercase(),
+            needs_refresh: true,
             ..Default::default()
         }
     }
 
     pub fn update_rate(&mut self, rate: f64) {
         self.rate = Some(rate);
+        self.needs_refresh = false;
         self.recalculate();
     }
 
@@ -196,9 +198,7 @@ impl CurrencyConverter {
     }
 
     fn recalculate(&mut self) {
-        if let Some(rate) = self.rate {
-            self.to_amount = self.from_amount * rate;
-        }
+        self.to_amount = self.rate.map(|r| self.from_amount * r).unwrap_or(0.0);
     }
 
     pub fn swap_currencies(&mut self) {
@@ -206,6 +206,9 @@ impl CurrencyConverter {
         if let Some(rate) = self.rate {
             self.rate = Some(1.0 / rate);
             self.recalculate();
+        } else {
+            self.to_amount = 0.0;
+            self.needs_refresh = true;
         }
     }
 
@@ -239,13 +242,14 @@ impl CurrencyConverter {
         self.from_currency = from.to_string();
         self.to_currency = to.to_string();
         self.rate = None;
+        self.to_amount = 0.0;
         self.needs_refresh = true;
         self.recalculate();
     }
 
     /// check if rate refresh is needed
     pub fn needs_rate_refresh(&self) -> bool {
-        self.needs_refresh
+        self.needs_refresh || self.rate.is_none()
     }
 
     /// clear the refresh flag

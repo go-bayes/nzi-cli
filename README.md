@@ -2,6 +2,8 @@
 
 A terminal dashboard with useful information for thinking about New Zealand and its place in the world: local weather, world clocks, and currency conversion with a (beautiful) catppuccin mocha theme.
 
+![nzi static](images/nzi.png)
+
 ![demo](demo.gif)
 
 ## Features
@@ -17,7 +19,7 @@ Of course you can get this information from a browser,  but it's much nicer to h
 
 I built this because I enjoy the terminal. I wanted a tool that could grab useful information for me from the sublime comfort of the terminal. No browser menus to negotiate.
 
-After installing, just type `nzi-cli` into your terminal and the interface will spring forth to life!
+After installing, run `nzi` in your terminal and the interface will spring forth to life!
 
 You can use this to:
 
@@ -56,7 +58,7 @@ Once Rust is installed, run the `cargo install` command above.
 
 ```bash
 # launch the dashboard
-nzi-cli
+nzi
 
 # show help overlay
 `/h`
@@ -84,9 +86,9 @@ Type `/help` to show the help overlay.
 | Key | Action |
 |-----|--------|
 | `Space` | Cycle city/currency |
-| `s` | Swap (time/currency) |
+| `s` | Swap (time/currency) / toggle weather view |
+| `e` | Edit (time/currency) |
 | `0-9` | Enter time/amount |
-| `e` | Toggle weather grid view |
 
 ### Slash Commands
 
@@ -160,7 +162,7 @@ London, New York, Los Angeles, Austin, Paris, Sydney, Tokyo, Singapore
 git clone https://github.com/go-bayes/nzi-cli
 cd nzi-cli
 cargo build --release
-./target/release/nzi-cli
+./target/release/nzi
 ```
 
 ## Fine print
