@@ -1,6 +1,6 @@
 # nzi-cli
 
-A terminal dashboard with useful information for thinking about New Zealand and its place in the world: local weather, world clocks, and currency conversion with a (beautiful) catppuccin mocha theme.
+A terminal dashboard with useful information for thinking about New Zealand and its place in the world: local weather, world clocks, and currency conversion. 
 
 ![nzi static](images/nzi.png)
 
@@ -62,7 +62,7 @@ nzi
 `Esc`
 
 # quit interface/return to terminal 
-q
+`q`
 ```
 
 ## Keybindings
