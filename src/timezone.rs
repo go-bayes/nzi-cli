@@ -65,9 +65,7 @@ pub struct TimezoneService {
 
 impl TimezoneService {
     pub fn new() -> Self {
-        Self {
-            cities: Vec::new(),
-        }
+        Self { cities: Vec::new() }
     }
 
     /// update all city times
@@ -174,7 +172,8 @@ impl TimeConverter {
             return;
         }
         // find current position
-        let current_idx = city_codes.iter()
+        let current_idx = city_codes
+            .iter()
             .position(|c| c == &self.to_city_code)
             .unwrap_or(0);
         // move to next, skipping if it matches from_city
@@ -191,7 +190,11 @@ impl TimeConverter {
     }
 
     pub fn decrement_hour(&mut self) {
-        self.input_hour = if self.input_hour == 0 { 23 } else { self.input_hour - 1 };
+        self.input_hour = if self.input_hour == 0 {
+            23
+        } else {
+            self.input_hour - 1
+        };
     }
 
     pub fn increment_minute(&mut self) {
@@ -199,7 +202,11 @@ impl TimeConverter {
     }
 
     pub fn decrement_minute(&mut self) {
-        self.input_minute = if self.input_minute == 0 { 59 } else { self.input_minute - 1 };
+        self.input_minute = if self.input_minute == 0 {
+            59
+        } else {
+            self.input_minute - 1
+        };
     }
 
     pub fn format_input_time(&self) -> String {
@@ -253,7 +260,8 @@ impl TimeConverter {
             return;
         }
 
-        let digits: Vec<u32> = self.input_buffer
+        let digits: Vec<u32> = self
+            .input_buffer
             .chars()
             .filter_map(|c| c.to_digit(10))
             .collect();
@@ -303,7 +311,11 @@ impl TimeConverter {
             match self.input_buffer.len() {
                 1 => format!("{}█:__", self.input_buffer),
                 2 => format!("{}█:__", self.input_buffer),
-                3 => format!("{}:{}█_", &self.input_buffer[0..2], &self.input_buffer[2..3]),
+                3 => format!(
+                    "{}:{}█_",
+                    &self.input_buffer[0..2],
+                    &self.input_buffer[2..3]
+                ),
                 4 => format!("{}:{}", &self.input_buffer[0..2], &self.input_buffer[2..4]),
                 _ => self.format_input_time(),
             }

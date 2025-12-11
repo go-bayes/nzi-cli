@@ -28,9 +28,9 @@ use anyhow::Result;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{Terminal, backend::CrosstermBackend};
 
 use app::App;
 use config::Config;
@@ -153,9 +153,7 @@ async fn open_editor_for_config(
     terminal.show_cursor()?;
 
     // spawn editor and wait for it to finish
-    let status = Command::new(&editor)
-        .arg(&config_path)
-        .status();
+    let status = Command::new(&editor).arg(&config_path).status();
 
     // re-enter TUI mode
     enable_raw_mode()?;

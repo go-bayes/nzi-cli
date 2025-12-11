@@ -68,10 +68,13 @@ impl ExchangeService {
         // try to fetch fresh rate
         match self.fetch_rate(from, to).await {
             Ok(rate) => {
-                self.cache.insert(key, CachedRate {
-                    rate,
-                    last_updated: Instant::now(),
-                });
+                self.cache.insert(
+                    key,
+                    CachedRate {
+                        rate,
+                        last_updated: Instant::now(),
+                    },
+                );
                 Ok(rate)
             }
             Err(_) => {
@@ -89,7 +92,8 @@ impl ExchangeService {
             from.to_uppercase()
         );
 
-        let response: serde_json::Value = self.client
+        let response: serde_json::Value = self
+            .client
             .get(&url)
             .send()
             .await
@@ -115,15 +119,13 @@ impl ExchangeService {
         let to_upper = to.to_uppercase();
 
         // convert through NZD as the base
-        let from_to_nzd = self.fallback_rates
+        let from_to_nzd = self
+            .fallback_rates
             .get(&from_upper)
             .map(|r| 1.0 / r)
             .unwrap_or(1.0);
 
-        let nzd_to_to = self.fallback_rates
-            .get(&to_upper)
-            .copied()
-            .unwrap_or(1.0);
+        let nzd_to_to = self.fallback_rates.get(&to_upper).copied().unwrap_or(1.0);
 
         Ok(from_to_nzd * nzd_to_to)
     }

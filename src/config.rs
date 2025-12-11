@@ -107,7 +107,6 @@ impl City {
             currency: "USD".to_string(),
         }
     }
-
 }
 
 /// display preferences
@@ -137,7 +136,8 @@ impl Default for DisplayConfig {
 impl DisplayConfig {
     /// get the editor command, checking config, $EDITOR, then falling back to nvim
     pub fn get_editor(&self) -> String {
-        self.editor.clone()
+        self.editor
+            .clone()
             .or_else(|| std::env::var("EDITOR").ok())
             .unwrap_or_else(|| "nvim".to_string())
     }
@@ -161,11 +161,11 @@ impl Default for Config {
         Self {
             // wellington is home - NZ anchor city
             current_city: City::wellington(),
-            // london as primary world city (for "around the world")
-            home_city: City::london(),
+            // new york as primary world city (for "around the world")
+            home_city: City::new_york(),
             // track other world cities for world clock
             tracked_cities: vec![
-                City::new_york(),
+                City::london(),
                 City::los_angeles(),
                 City::austin(),
                 City::paris(),
@@ -197,10 +197,8 @@ impl Config {
         let config_path = Self::config_path();
 
         if config_path.exists() {
-            let content = fs::read_to_string(&config_path)
-                .context("failed to read config file")?;
-            let config: Config = toml::from_str(&content)
-                .context("failed to parse config file")?;
+            let content = fs::read_to_string(&config_path).context("failed to read config file")?;
+            let config: Config = toml::from_str(&content).context("failed to parse config file")?;
             Ok(config)
         } else {
             // create default config
@@ -216,15 +214,12 @@ impl Config {
 
         // ensure the config directory exists
         if let Some(parent) = config_path.parent() {
-            fs::create_dir_all(parent)
-                .context("failed to create config directory")?;
+            fs::create_dir_all(parent).context("failed to create config directory")?;
         }
 
-        let content = toml::to_string_pretty(self)
-            .context("failed to serialise config")?;
+        let content = toml::to_string_pretty(self).context("failed to serialise config")?;
 
-        fs::write(&config_path, content)
-            .context("failed to write config file")?;
+        fs::write(&config_path, content).context("failed to write config file")?;
 
         Ok(())
     }

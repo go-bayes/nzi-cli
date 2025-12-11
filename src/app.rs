@@ -93,14 +93,14 @@ pub struct App {
     // cached city times
     pub current_city_time: Option<CityTime>,
     pub home_city_time: Option<CityTime>,
-    pub world_city_times: Vec<CityTime>,  // tracked world cities
+    pub world_city_times: Vec<CityTime>, // tracked world cities
 
     // cached weather - now supports multiple cities
     pub current_weather: Option<CurrentWeather>,
-    pub weather_city_index: usize,  // index into NZ_CITIES for weather display
-    pub weather_error: Option<String>,  // last weather fetch error
-    pub weather_refresh_pending: bool,  // flag to request weather refresh
-    pub weather_expanded: bool,  // toggle between compact and expanded grid view
+    pub weather_city_index: usize, // index into NZ_CITIES for weather display
+    pub weather_error: Option<String>, // last weather fetch error
+    pub weather_refresh_pending: bool, // flag to request weather refresh
+    pub weather_expanded: bool,    // toggle between compact and expanded grid view
 
     // animation state
     pub animation_frame: usize,
@@ -139,15 +139,13 @@ impl App {
         let tick_rate = Duration::from_millis(config.display.animation_speed_ms);
 
         // initialise converters with config values
-        let currency_converter = CurrencyConverter::new(
-            &config.current_city.currency,
-            &config.home_city.currency,
-        );
+        let currency_converter =
+            CurrencyConverter::new(&config.current_city.currency, &config.home_city.currency);
 
-        let time_converter = TimeConverter::new(
-            &config.current_city.code,
-            &config.home_city.code,
-        );
+        let time_converter = TimeConverter::new(&config.current_city.code, &config.home_city.code);
+
+        // start on Wellington for weather by default
+        let wellington_index = NZ_CITIES.iter().position(|c| c.code == "WLG").unwrap_or(0);
 
         Self {
             config,
@@ -162,16 +160,16 @@ impl App {
             home_city_time: None,
             world_city_times: Vec::new(),
             current_weather: None,
-            weather_city_index: 0,
+            weather_city_index: wellington_index,
             weather_error: None,
-            weather_refresh_pending: true,  // fetch on startup
-            weather_expanded: false,  // start compact
+            weather_refresh_pending: true, // fetch on startup
+            weather_expanded: true,        // start expanded grid
             animation_frame: 0,
             last_tick: Instant::now(),
             tick_rate,
             status_message: None,
             input_mode: InputMode::Normal,
-            is_online: false,  // assume offline until proven otherwise
+            is_online: false, // assume offline until proven otherwise
             show_help: false,
             edit_config_requested: false,
             command_buffer: String::new(),
@@ -212,7 +210,9 @@ impl App {
         self.home_city_time = CityTime::from_city(&self.config.home_city);
 
         // update world city times (tracked cities)
-        self.world_city_times = self.config.tracked_cities
+        self.world_city_times = self
+            .config
+            .tracked_cities
             .iter()
             .filter_map(|city| CityTime::from_city(city))
             .collect();
@@ -243,10 +243,7 @@ impl App {
             Ok(rate) => {
                 self.currency_converter.update_rate(rate);
                 self.is_online = true;
-                self.set_status(format!(
-                    "Rate: 1 {} = {:.4} {}",
-                    from, rate, to
-                ));
+                self.set_status(format!("Rate: 1 {} = {:.4} {}", from, rate, to));
             }
             Err(e) => {
                 // may still have fallback rate, but mark not fully online
@@ -354,19 +351,17 @@ impl App {
             }
 
             // 'r' - refresh weather or reset time converter
-            KeyCode::Char('r') => {
-                match self.focus {
-                    Focus::Weather => {
-                        self.weather_refresh_pending = true;
-                        self.set_status("Refreshing weather...".to_string());
-                    }
-                    Focus::TimeConvert => {
-                        self.time_converter.reset();
-                        self.update_time_conversion();
-                    }
-                    _ => {}
+            KeyCode::Char('r') => match self.focus {
+                Focus::Weather => {
+                    self.weather_refresh_pending = true;
+                    self.set_status("Refreshing weather...".to_string());
                 }
-            }
+                Focus::TimeConvert => {
+                    self.time_converter.reset();
+                    self.update_time_conversion();
+                }
+                _ => {}
+            },
 
             // numeric input for currency when focused
             KeyCode::Char(c) if c.is_ascii_digit() && self.focus == Focus::Currency => {
@@ -382,7 +377,9 @@ impl App {
             }
 
             // backspace for time converter when typing
-            KeyCode::Backspace if self.focus == Focus::TimeConvert && self.time_converter.is_typing() => {
+            KeyCode::Backspace
+                if self.focus == Focus::TimeConvert && self.time_converter.is_typing() =>
+            {
                 self.time_converter.handle_backspace();
                 self.update_time_conversion();
             }
@@ -509,10 +506,13 @@ impl App {
             &self.config.current_city.currency,
             &self.config.home_city.currency,
         );
-        self.time_converter = TimeConverter::new(
-            &self.config.current_city.code,
-            &self.config.home_city.code,
-        );
+        self.time_converter =
+            TimeConverter::new(&self.config.current_city.code, &self.config.home_city.code);
+        // reset weather defaults to Wellington grid view
+        self.weather_city_index = NZ_CITIES.iter().position(|c| c.code == "WLG").unwrap_or(0);
+        self.current_weather = None;
+        self.weather_error = None;
+        self.weather_expanded = true;
         // trigger refresh
         self.weather_refresh_pending = true;
     }
@@ -612,10 +612,8 @@ impl App {
             &self.config.current_city.currency,
             &self.config.home_city.currency,
         );
-        self.time_converter = TimeConverter::new(
-            &self.config.current_city.code,
-            &self.config.home_city.code,
-        );
+        self.time_converter =
+            TimeConverter::new(&self.config.current_city.code, &self.config.home_city.code);
         self.set_status("Config reloaded".to_string());
         Ok(())
     }

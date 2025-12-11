@@ -59,10 +59,10 @@ impl WeatherIcon {
 /// time of day period
 #[derive(Debug, Clone, Copy)]
 pub enum TimeOfDay {
-    Morning,  // 6-12
-    Noon,     // 12-18
-    Evening,  // 18-24
-    Night,    // 0-6
+    Morning, // 6-12
+    Noon,    // 12-18
+    Evening, // 18-24
+    Night,   // 0-6
 }
 
 impl TimeOfDay {
@@ -174,24 +174,96 @@ pub struct CityCoords {
 
 /// known city coordinates
 pub const CITY_COORDS: &[CityCoords] = &[
-    CityCoords { name: "wellington", lat: -41.2865, lon: 174.7762 },
-    CityCoords { name: "auckland", lat: -36.8485, lon: 174.7633 },
-    CityCoords { name: "christchurch", lat: -43.5321, lon: 172.6362 },
-    CityCoords { name: "dunedin", lat: -45.8788, lon: 170.5028 },
-    CityCoords { name: "hamilton", lat: -37.7870, lon: 175.2793 },
-    CityCoords { name: "tauranga", lat: -37.6878, lon: 176.1651 },
-    CityCoords { name: "new plymouth", lat: -39.0556, lon: 174.0752 },
-    CityCoords { name: "nelson", lat: -41.2706, lon: 173.2840 },
-    CityCoords { name: "queenstown", lat: -45.0312, lon: 168.6626 },
-    CityCoords { name: "new york", lat: 40.7128, lon: -74.0060 },
-    CityCoords { name: "london", lat: 51.5074, lon: -0.1278 },
-    CityCoords { name: "sydney", lat: -33.8688, lon: 151.2093 },
-    CityCoords { name: "tokyo", lat: 35.6762, lon: 139.6503 },
-    CityCoords { name: "singapore", lat: 1.3521, lon: 103.8198 },
-    CityCoords { name: "los angeles", lat: 34.0522, lon: -118.2437 },
-    CityCoords { name: "san francisco", lat: 37.7749, lon: -122.4194 },
-    CityCoords { name: "paris", lat: 48.8566, lon: 2.3522 },
-    CityCoords { name: "austin", lat: 30.2672, lon: -97.7431 },
+    CityCoords {
+        name: "wellington",
+        lat: -41.2865,
+        lon: 174.7762,
+    },
+    CityCoords {
+        name: "auckland",
+        lat: -36.8485,
+        lon: 174.7633,
+    },
+    CityCoords {
+        name: "christchurch",
+        lat: -43.5321,
+        lon: 172.6362,
+    },
+    CityCoords {
+        name: "dunedin",
+        lat: -45.8788,
+        lon: 170.5028,
+    },
+    CityCoords {
+        name: "hamilton",
+        lat: -37.7870,
+        lon: 175.2793,
+    },
+    CityCoords {
+        name: "tauranga",
+        lat: -37.6878,
+        lon: 176.1651,
+    },
+    CityCoords {
+        name: "new plymouth",
+        lat: -39.0556,
+        lon: 174.0752,
+    },
+    CityCoords {
+        name: "nelson",
+        lat: -41.2706,
+        lon: 173.2840,
+    },
+    CityCoords {
+        name: "queenstown",
+        lat: -45.0312,
+        lon: 168.6626,
+    },
+    CityCoords {
+        name: "new york",
+        lat: 40.7128,
+        lon: -74.0060,
+    },
+    CityCoords {
+        name: "london",
+        lat: 51.5074,
+        lon: -0.1278,
+    },
+    CityCoords {
+        name: "sydney",
+        lat: -33.8688,
+        lon: 151.2093,
+    },
+    CityCoords {
+        name: "tokyo",
+        lat: 35.6762,
+        lon: 139.6503,
+    },
+    CityCoords {
+        name: "singapore",
+        lat: 1.3521,
+        lon: 103.8198,
+    },
+    CityCoords {
+        name: "los angeles",
+        lat: 34.0522,
+        lon: -118.2437,
+    },
+    CityCoords {
+        name: "san francisco",
+        lat: 37.7749,
+        lon: -122.4194,
+    },
+    CityCoords {
+        name: "paris",
+        lat: 48.8566,
+        lon: 2.3522,
+    },
+    CityCoords {
+        name: "austin",
+        lat: 30.2672,
+        lon: -97.7431,
+    },
 ];
 
 /// get coordinates for a city name
@@ -269,8 +341,8 @@ impl WeatherService {
     }
 
     async fn fetch_weather(&self, location: &str) -> Result<CurrentWeather> {
-        let (lat, lon) = get_city_coords(location)
-            .context("unknown city - add coordinates to CITY_COORDS")?;
+        let (lat, lon) =
+            get_city_coords(location).context("unknown city - add coordinates to CITY_COORDS")?;
 
         // open-meteo api - fast and free, with 3-day forecast + hourly for period breakdown
         let url = format!(
@@ -278,7 +350,8 @@ impl WeatherService {
             lat, lon
         );
 
-        let response: OpenMeteoResponse = self.client
+        let response: OpenMeteoResponse = self
+            .client
             .get(&url)
             .send()
             .await
@@ -298,23 +371,43 @@ impl WeatherService {
 
         // parse 3-day forecast with period breakdowns
         let forecast = if let Some(daily) = &response.daily {
-            daily.time.iter().enumerate().take(3).map(|(i, date)| {
-                // get periods for this day
-                let day_periods = if i < hourly_periods.len() {
-                    hourly_periods[i].clone()
-                } else {
-                    Vec::new()
-                };
+            daily
+                .time
+                .iter()
+                .enumerate()
+                .take(3)
+                .map(|(i, date)| {
+                    // get periods for this day
+                    let day_periods = if i < hourly_periods.len() {
+                        hourly_periods[i].clone()
+                    } else {
+                        Vec::new()
+                    };
 
-                DayForecast {
-                    date: date.clone(),
-                    temp_max: daily.temperature_2m_max.get(i).map(|t| t.round() as i32).unwrap_or(0),
-                    temp_min: daily.temperature_2m_min.get(i).map(|t| t.round() as i32).unwrap_or(0),
-                    wind_max: daily.wind_speed_10m_max.get(i).map(|w| w.round() as i32).unwrap_or(0),
-                    icon: WeatherIcon::from_wmo_code(daily.weather_code.get(i).copied().unwrap_or(0)),
-                    periods: day_periods,
-                }
-            }).collect()
+                    DayForecast {
+                        date: date.clone(),
+                        temp_max: daily
+                            .temperature_2m_max
+                            .get(i)
+                            .map(|t| t.round() as i32)
+                            .unwrap_or(0),
+                        temp_min: daily
+                            .temperature_2m_min
+                            .get(i)
+                            .map(|t| t.round() as i32)
+                            .unwrap_or(0),
+                        wind_max: daily
+                            .wind_speed_10m_max
+                            .get(i)
+                            .map(|w| w.round() as i32)
+                            .unwrap_or(0),
+                        icon: WeatherIcon::from_wmo_code(
+                            daily.weather_code.get(i).copied().unwrap_or(0),
+                        ),
+                        periods: day_periods,
+                    }
+                })
+                .collect()
         } else {
             Vec::new()
         };
@@ -336,7 +429,12 @@ impl WeatherService {
 
 /// parse hourly data into period forecasts (4 periods per day for 3 days)
 fn parse_hourly_to_periods(hourly: &OpenMeteoHourly) -> Vec<Vec<PeriodForecast>> {
-    let periods = [TimeOfDay::Morning, TimeOfDay::Noon, TimeOfDay::Evening, TimeOfDay::Night];
+    let periods = [
+        TimeOfDay::Morning,
+        TimeOfDay::Noon,
+        TimeOfDay::Evening,
+        TimeOfDay::Night,
+    ];
     let mut result = Vec::new();
 
     // 3 days * 24 hours = 72 hourly entries
@@ -364,7 +462,11 @@ fn parse_hourly_to_periods(hourly: &OpenMeteoHourly) -> Vec<Vec<PeriodForecast>>
                 let avg_temp = temps.iter().sum::<f64>() / temps.len() as f64;
                 let max_wind = winds.iter().cloned().fold(0.0_f64, f64::max);
                 // use most common weather code in period
-                let mode_code = codes.iter().max_by_key(|c| codes.iter().filter(|x| *x == *c).count()).copied().unwrap_or(0);
+                let mode_code = codes
+                    .iter()
+                    .max_by_key(|c| codes.iter().filter(|x| *x == *c).count())
+                    .copied()
+                    .unwrap_or(0);
 
                 day_periods.push(PeriodForecast {
                     period: *period,

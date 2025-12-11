@@ -8,12 +8,12 @@ use ratatui::{
     symbols::Marker,
     text::Span,
     widgets::{
-        canvas::{Canvas, Map, MapResolution, Points},
         Block, BorderType, Borders, Widget,
+        canvas::{Canvas, Map, MapResolution, Points},
     },
 };
 
-use crate::theme::{catppuccin, Theme};
+use crate::theme::{Theme, catppuccin};
 
 // nz bounding box for canvas map (from nzme-cli)
 pub const NZ_LAT_MIN: f64 = -47.5;
@@ -32,7 +32,12 @@ pub struct CityMarker {
 
 impl CityMarker {
     pub const fn new(code: &'static str, name: &'static str, lat: f64, lon: f64) -> Self {
-        Self { code, name, lat, lon }
+        Self {
+            code,
+            name,
+            lat,
+            lon,
+        }
     }
 }
 
@@ -143,7 +148,9 @@ impl Widget for NzMapCanvas {
         };
 
         let title_style = if self.focused {
-            Style::default().fg(catppuccin::YELLOW).add_modifier(Modifier::BOLD)
+            Style::default()
+                .fg(catppuccin::YELLOW)
+                .add_modifier(Modifier::BOLD)
         } else {
             Theme::block_title()
         };
