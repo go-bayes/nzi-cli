@@ -231,6 +231,8 @@ impl App {
             self.time_converter.input_minute,
         ) {
             self.time_converter.update_result(hour, minute, day_offset);
+        } else {
+            self.time_converter.invalid_input = true;
         }
     }
 
@@ -248,7 +250,7 @@ impl App {
             Err(e) => {
                 self.is_online = false;
                 self.currency_converter.needs_refresh = true;
-                self.set_status(format!("Rate error: {} (offline)", e));
+                self.set_status(e.to_string());
             }
         }
     }

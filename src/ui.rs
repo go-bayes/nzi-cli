@@ -2,6 +2,7 @@
 //! handles layout and drawing all widgets
 //! inspired by nzme-cli's high-density, information-rich design
 
+use chrono::NaiveDate;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -568,10 +569,21 @@ fn draw_weather_detail(frame: &mut Frame, area: Rect, app: &App) {
             }
 
             // navigation hint and source on same line to save space
+            let is_stale_or_offline = w.is_stale() || app.weather_error.is_some();
+            let source_tag = if is_stale_or_offline {
+                " [stale/offline]"
+            } else {
+                " [live]"
+            };
+            let source_tag_style = if is_stale_or_offline {
+                Style::default().fg(catppuccin::YELLOW)
+            } else {
+                Style::default().fg(catppuccin::GREEN)
+            };
             lines.push(Line::from(vec![
                 Span::styled("  ", Style::default()),
                 Span::styled("Open-Meteo", Style::default().fg(catppuccin::SAPPHIRE)),
-                Span::styled(" [live]", Style::default().fg(catppuccin::GREEN)),
+                Span::styled(source_tag, source_tag_style),
             ]));
 
             let para = Paragraph::new(lines).wrap(Wrap { trim: false });
@@ -800,6 +812,7 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
             let mut lines: Vec<Line> = vec![];
             let border = Style::default().fg(catppuccin::SURFACE2);
             let grid_width: u16 = 57;
+            let is_stale_or_offline = w.is_stale() || app.weather_error.is_some();
             let grid_padding = if inner.width > grid_width {
                 ((inner.width - grid_width) / 2) as usize
             } else {
@@ -881,14 +894,14 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
                 TimeOfDay::Night,
             ];
 
-            for (day_idx, day) in w.forecast.iter().take(3).enumerate() {
+            for day in w.forecast.iter().take(3) {
                 // format day header (centred)
                 let day_header = if day.date.len() >= 10 {
                     let month = &day.date[5..7];
                     let dom = &day.date[8..10];
-                    let weekday =
-                        chrono::Local::now().date_naive() + chrono::Duration::days(day_idx as i64);
-                    let day_name = weekday.format("%a").to_string();
+                    let day_name = NaiveDate::parse_from_str(&day.date, "%Y-%m-%d")
+                        .map(|date| date.format("%a").to_string())
+                        .unwrap_or_else(|_| "???".to_string());
                     format!("{} {} {}", day_name, dom, month_name(month))
                 } else {
                     day.date.clone()
@@ -1039,9 +1052,19 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
             }
 
             // source
+            let source_tag = if is_stale_or_offline {
+                " [stale/offline]"
+            } else {
+                " [live]"
+            };
+            let source_tag_style = if is_stale_or_offline {
+                Style::default().fg(catppuccin::YELLOW)
+            } else {
+                Style::default().fg(catppuccin::GREEN)
+            };
             lines.push(Line::from(vec![
                 Span::styled("Open-Meteo.com", Style::default().fg(catppuccin::SAPPHIRE)),
-                Span::styled(" [live]", Style::default().fg(catppuccin::GREEN)),
+                Span::styled(source_tag, source_tag_style),
             ]));
 
             let para = Paragraph::new(lines);
@@ -1207,6 +1230,15 @@ fn draw_time_panel(frame: &mut Frame, area: Rect, app: &App) {
     } else {
         converter.format_input_time()
     };
+    let result_style = if converter.invalid_input {
+        Style::default()
+            .fg(catppuccin::RED)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default()
+            .fg(catppuccin::GREEN)
+            .add_modifier(Modifier::BOLD)
+    };
 
     lines.push(Line::from(vec![Span::styled(
         " ─ Convert ─",
@@ -1226,9 +1258,7 @@ fn draw_time_panel(frame: &mut Frame, area: Rect, app: &App) {
         ),
         Span::styled(
             format!("{} ", converter.format_result_time()),
-            Style::default()
-                .fg(catppuccin::GREEN)
-                .add_modifier(Modifier::BOLD),
+            result_style,
         ),
         Span::styled(
             to_name.chars().take(6).collect::<String>(),
@@ -1379,6 +1409,15 @@ fn draw_time_converter_compact(frame: &mut Frame, area: Rect, app: &App) {
     } else {
         converter.format_input_time()
     };
+    let result_style = if converter.invalid_input {
+        Style::default()
+            .fg(catppuccin::RED)
+            .add_modifier(Modifier::BOLD)
+    } else {
+        Style::default()
+            .fg(catppuccin::GREEN)
+            .add_modifier(Modifier::BOLD)
+    };
 
     let mut lines = vec![];
 
@@ -1403,9 +1442,7 @@ fn draw_time_converter_compact(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled(" → ", Style::default().fg(catppuccin::OVERLAY1)),
         Span::styled(
             format!("{} ", converter.format_result_time()),
-            Style::default()
-                .fg(catppuccin::GREEN)
-                .add_modifier(Modifier::BOLD),
+            result_style,
         ),
         Span::styled(
             to_name.chars().take(8).collect::<String>(),
@@ -1480,7 +1517,7 @@ fn draw_currency_detail(frame: &mut Frame, area: Rect, app: &App) {
     } else if app.is_online {
         "loading...".to_string()
     } else {
-        "no live rate (offline)".to_string()
+        "rate unavailable (offline, no cache)".to_string()
     };
 
     lines.push(Line::from(vec![

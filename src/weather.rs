@@ -4,6 +4,7 @@
 use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::time::{Duration, Instant};
+use tokio::time::sleep;
 
 /// weather condition icons
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -358,8 +359,30 @@ impl WeatherService {
             return Ok(cached.clone());
         }
 
-        // fetch from open-meteo
-        let weather = self.fetch_weather(location).await?;
+        let mut last_err = None;
+        let mut backoff = Duration::from_millis(500);
+        let mut weather = None;
+        for attempt in 0..3 {
+            match self.fetch_weather(location).await {
+                Ok(fresh) => {
+                    weather = Some(fresh);
+                    break;
+                }
+                Err(err) => {
+                    last_err = Some(err);
+                    if attempt < 2 {
+                        sleep(backoff).await;
+                        backoff = backoff + backoff;
+                    }
+                }
+            }
+        }
+
+        let weather = match weather {
+            Some(fresh) => fresh,
+            None => return Err(last_err.unwrap()),
+        };
+
         self.cache.insert(cache_key, weather.clone());
         Ok(weather)
     }

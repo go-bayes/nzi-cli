@@ -1,7 +1,7 @@
 //! exchange rate fetching and conversion module
 //! supports any currency pair with caching
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -22,8 +22,6 @@ impl CachedRate {
 pub struct ExchangeService {
     cache: HashMap<String, CachedRate>,
     client: reqwest::Client,
-    // fallback rates when offline (approximate rates as of 2024)
-    fallback_rates: HashMap<String, f64>,
 }
 
 impl ExchangeService {
@@ -33,19 +31,9 @@ impl ExchangeService {
             .build()
             .unwrap_or_default();
 
-        // fallback rates relative to NZD (approximate)
-        let mut fallback_rates = HashMap::new();
-        fallback_rates.insert("NZD".to_string(), 1.0);
-        fallback_rates.insert("USD".to_string(), 0.60);
-        fallback_rates.insert("EUR".to_string(), 0.55);
-        fallback_rates.insert("GBP".to_string(), 0.47);
-        fallback_rates.insert("AUD".to_string(), 0.92);
-        fallback_rates.insert("JPY".to_string(), 90.0);
-
         Self {
             cache: HashMap::new(),
             client,
-            fallback_rates,
         }
     }
 
@@ -78,7 +66,7 @@ impl ExchangeService {
                 Ok(rate)
             }
             Err(_) => {
-                // use fallback rates if API fails
+                // use cached/identity fallback if API fails
                 self.get_fallback_rate(from, to)
             }
         }
@@ -118,16 +106,24 @@ impl ExchangeService {
         let from_upper = from.to_uppercase();
         let to_upper = to.to_uppercase();
 
-        // convert through NZD as the base
-        let from_to_nzd = self
-            .fallback_rates
-            .get(&from_upper)
-            .map(|r| 1.0 / r)
-            .unwrap_or(1.0);
+        if from_upper == to_upper {
+            return Ok(1.0);
+        }
 
-        let nzd_to_to = self.fallback_rates.get(&to_upper).copied().unwrap_or(1.0);
+        let key = Self::cache_key(&from_upper, &to_upper);
+        if let Some(cached) = self.cache.get(&key) {
+            return Ok(cached.rate);
+        }
 
-        Ok(from_to_nzd * nzd_to_to)
+        let reverse_key = Self::cache_key(&to_upper, &from_upper);
+        if let Some(cached) = self.cache.get(&reverse_key) {
+            if cached.rate == 0.0 {
+                bail!("cached exchange rate is zero for {} -> {}", to_upper, from_upper);
+            }
+            return Ok(1.0 / cached.rate);
+        }
+
+        bail!("rate unavailable (offline, no cache)")
     }
 }
 

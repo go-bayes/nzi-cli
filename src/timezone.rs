@@ -138,6 +138,7 @@ pub struct TimeConverter {
     pub result_hour: u32,
     pub result_minute: u32,
     pub day_offset: i32,
+    pub invalid_input: bool,
     /// buffer for direct time input (e.g. "1430" for 14:30)
     pub input_buffer: String,
 }
@@ -153,6 +154,7 @@ impl Default for TimeConverter {
             result_hour: 0,
             result_minute: 0,
             day_offset: 0,
+            invalid_input: false,
             input_buffer: String::new(),
         }
     }
@@ -171,6 +173,7 @@ impl TimeConverter {
         self.result_hour = hour;
         self.result_minute = minute;
         self.day_offset = day_offset;
+        self.invalid_input = false;
     }
 
     pub fn swap_cities(&mut self) {
@@ -225,6 +228,9 @@ impl TimeConverter {
     }
 
     pub fn format_result_time(&self) -> String {
+        if self.invalid_input {
+            return "invalid local time".to_string();
+        }
         let time = format!("{:02}:{:02}", self.result_hour, self.result_minute);
         match self.day_offset {
             -1 => format!("{} (yesterday)", time),

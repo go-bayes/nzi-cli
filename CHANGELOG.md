@@ -1,6 +1,9 @@
 # Changelog
 
-# Changelog
+## 0.1.7
+- Exchange rates now avoid approximate offline values; cache-only fallback with clearer messaging.
+- Weather shows stale/offline tags, uses location dates for weekday headers, and retries briefly on startup.
+- Time conversion gives invalid local times instead of silently keeping the previous result.
 
 ## 0.1.6
 - `/reload` replaces `/reset`; config reload no longer overwrites user settings.
