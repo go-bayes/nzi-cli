@@ -107,6 +107,16 @@ impl City {
             currency: "USD".to_string(),
         }
     }
+
+    pub fn rio() -> Self {
+        Self {
+            name: "RIO".to_string(),
+            code: "RIO".to_string(),
+            country: "Brazil".to_string(),
+            timezone: "America/Sao_Paulo".to_string(),
+            currency: "BRL".to_string(),
+        }
+    }
 }
 
 /// display preferences
@@ -172,6 +182,7 @@ impl Default for Config {
                 City::sydney(),
                 City::tokyo(),
                 City::singapore(),
+                City::rio(),
             ],
             display: DisplayConfig::default(),
         }
@@ -198,7 +209,13 @@ impl Config {
 
         if config_path.exists() {
             let content = fs::read_to_string(&config_path).context("failed to read config file")?;
-            let config: Config = toml::from_str(&content).context("failed to parse config file")?;
+            let mut config: Config =
+                toml::from_str(&content).context("failed to parse config file")?;
+            let mut updated = false;
+            updated |= config.ensure_tracked_city(City::rio());
+            if updated {
+                config.save()?;
+            }
             Ok(config)
         } else {
             // create default config
@@ -234,5 +251,17 @@ impl Config {
     /// get all city codes for time conversion cycling
     pub fn all_city_codes(&self) -> Vec<String> {
         self.all_cities().iter().map(|c| c.code.clone()).collect()
+    }
+
+    fn ensure_tracked_city(&mut self, city: City) -> bool {
+        if self
+            .tracked_cities
+            .iter()
+            .any(|c| c.code.eq_ignore_ascii_case(&city.code))
+        {
+            return false;
+        }
+        self.tracked_cities.push(city);
+        true
     }
 }

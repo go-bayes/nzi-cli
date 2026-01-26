@@ -20,6 +20,10 @@ pub const NZ_LAT_MIN: f64 = -47.5;
 pub const NZ_LAT_MAX: f64 = -34.0;
 pub const NZ_LON_MIN: f64 = 166.0;
 pub const NZ_LON_MAX: f64 = 179.0;
+pub const WORLD_LAT_MIN: f64 = -60.0;
+pub const WORLD_LAT_MAX: f64 = 85.0;
+pub const WORLD_LON_MIN: f64 = -180.0;
+pub const WORLD_LON_MAX: f64 = 180.0;
 
 /// city locations (lon, lat) for map markers - NZ cities only
 #[derive(Debug, Clone)]
@@ -48,6 +52,13 @@ pub const NZ_CITIES: &[CityMarker] = &[
     CityMarker::new("CHC", "Christchurch", -43.5321, 172.6362),
     CityMarker::new("DUD", "Dunedin", -45.8788, 170.5028),
 ];
+
+#[derive(Debug, Clone)]
+pub struct WorldMarker {
+    pub label: String,
+    pub lat: f64,
+    pub lon: f64,
+}
 
 /// canvas-based nz map widget with braille rendering
 #[derive(Default)]
@@ -209,11 +220,149 @@ impl Widget for NzMapCanvas {
 
                     // city label
                     let label = if is_highlighted {
-                        format!("{}*", city.code)
+                        format!("★★{}★★", city.name)
                     } else {
                         city.code.to_string()
                     };
                     ctx.print(city.lon + 0.25, city.lat + 0.15, label);
+                }
+            });
+
+        canvas.render(area, buf);
+    }
+}
+
+#[derive(Default)]
+pub struct WorldMapCanvas {
+    tick: u64,
+    primary: Option<WorldMarker>,
+    secondary: Option<WorldMarker>,
+    focused: bool,
+    title: Option<String>,
+}
+
+impl WorldMapCanvas {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn tick(mut self, tick: u64) -> Self {
+        self.tick = tick;
+        self
+    }
+
+    pub fn primary(mut self, marker: Option<WorldMarker>) -> Self {
+        self.primary = marker;
+        self
+    }
+
+    pub fn secondary(mut self, marker: Option<WorldMarker>) -> Self {
+        self.secondary = marker;
+        self
+    }
+
+    pub fn focused(mut self, focused: bool) -> Self {
+        self.focused = focused;
+        self
+    }
+
+    pub fn title(mut self, title: impl Into<String>) -> Self {
+        self.title = Some(title.into());
+        self
+    }
+}
+
+fn route_points(from: &WorldMarker, to: &WorldMarker, steps: usize) -> Vec<(f64, f64)> {
+    let steps = steps.max(2);
+    let mut points = Vec::with_capacity(steps);
+    for i in 0..steps {
+        let t = i as f64 / (steps - 1) as f64;
+        let lon = from.lon + (to.lon - from.lon) * t;
+        let lat = from.lat + (to.lat - from.lat) * t;
+        points.push((lon, lat));
+    }
+    points
+}
+
+impl Widget for WorldMapCanvas {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let tick = self.tick as usize;
+
+        for y in area.top()..area.bottom() {
+            for x in area.left()..area.right() {
+                if let Some(cell) = buf.cell_mut((x, y)) {
+                    cell.set_bg(catppuccin::BASE);
+                    cell.set_symbol(" ");
+                }
+            }
+        }
+
+        let (border_type, border_color) = if self.focused {
+            (BorderType::Double, catppuccin::YELLOW)
+        } else {
+            (BorderType::Rounded, catppuccin::SURFACE1)
+        };
+
+        let title_style = if self.focused {
+            Style::default()
+                .fg(catppuccin::YELLOW)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Theme::block_title()
+        };
+
+        let title = self.title.unwrap_or_else(|| "🌍 World map".to_string());
+
+        let primary = self.primary.clone();
+        let secondary = self.secondary.clone();
+        let route = match (&primary, &secondary) {
+            (Some(from), Some(to)) => route_points(from, to, 40),
+            _ => Vec::new(),
+        };
+
+        let rainbow = Theme::rainbow_colors();
+        let map_color = rainbow[(tick / 4) % rainbow.len()];
+
+        let canvas = Canvas::default()
+            .block(
+                Block::default()
+                    .style(Style::default().bg(catppuccin::BASE))
+                    .borders(Borders::ALL)
+                    .border_type(border_type)
+                    .border_style(Style::default().fg(border_color))
+                    .title(Span::styled(format!(" {} ", title), title_style)),
+            )
+            .background_color(catppuccin::BASE)
+            .marker(Marker::Braille)
+            .x_bounds([WORLD_LON_MIN, WORLD_LON_MAX])
+            .y_bounds([WORLD_LAT_MIN, WORLD_LAT_MAX])
+            .paint(move |ctx| {
+                ctx.draw(&Map {
+                    color: map_color,
+                    resolution: MapResolution::Low,
+                });
+
+                if !route.is_empty() {
+                    ctx.draw(&Points {
+                        coords: &route,
+                        color: catppuccin::OVERLAY0,
+                    });
+                }
+
+                if let Some(marker) = &primary {
+                    ctx.draw(&Points {
+                        coords: &[(marker.lon, marker.lat)],
+                        color: catppuccin::SAPPHIRE,
+                    });
+                    ctx.print(marker.lon + 1.5, marker.lat + 1.0, marker.label.clone());
+                }
+
+                if let Some(marker) = &secondary {
+                    ctx.draw(&Points {
+                        coords: &[(marker.lon, marker.lat)],
+                        color: catppuccin::MAUVE,
+                    });
+                    ctx.print(marker.lon + 1.5, marker.lat + 1.0, marker.label.clone());
                 }
             });
 

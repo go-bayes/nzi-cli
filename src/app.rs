@@ -3,6 +3,7 @@
 use std::time::{Duration, Instant};
 
 use anyhow::Result;
+use chrono::Timelike;
 
 use crate::config::{City, Config};
 use crate::exchange::{CurrencyConverter, ExchangeService};
@@ -80,6 +81,7 @@ pub struct App {
     pub config: Config,
     pub running: bool,
     pub focus: Focus,
+    pub map_context: Focus,
 
     // services
     pub exchange_service: ExchangeService,
@@ -151,6 +153,7 @@ impl App {
             config,
             running: true,
             focus: Focus::Map,
+            map_context: Focus::Weather,
             exchange_service: ExchangeService::new(),
             timezone_service: TimezoneService::new(),
             weather_service: WeatherService::new(),
@@ -292,6 +295,20 @@ impl App {
         NZ_CITIES[self.weather_city_index].code
     }
 
+    pub fn city_by_code(&self, code: &str) -> Option<&City> {
+        self.config
+            .all_cities()
+            .into_iter()
+            .find(|city| city.code.eq_ignore_ascii_case(code))
+    }
+
+    fn set_focus(&mut self, focus: Focus) {
+        self.focus = focus;
+        if focus != Focus::Map {
+            self.map_context = focus;
+        }
+    }
+
     /// set a status message
     pub fn set_status(&mut self, message: String) {
         self.status_message = Some((message, Instant::now()));
@@ -329,21 +346,21 @@ impl App {
             KeyCode::Char('q') => self.running = false,
 
             // arrow keys move between panels
-            KeyCode::Up => self.focus = self.focus.up(),
-            KeyCode::Down => self.focus = self.focus.down(),
-            KeyCode::Left => self.focus = self.focus.left(),
-            KeyCode::Right => self.focus = self.focus.right(),
-            KeyCode::Tab => self.focus = self.focus.next(),
-            KeyCode::BackTab => self.focus = self.focus.prev(),
+            KeyCode::Up => self.set_focus(self.focus.up()),
+            KeyCode::Down => self.set_focus(self.focus.down()),
+            KeyCode::Left => self.set_focus(self.focus.left()),
+            KeyCode::Right => self.set_focus(self.focus.right()),
+            KeyCode::Tab => self.set_focus(self.focus.next()),
+            KeyCode::BackTab => self.set_focus(self.focus.prev()),
 
             KeyCode::Enter => self.enter_edit_mode(),
             KeyCode::Char('e') => self.enter_edit_mode(),
 
             // hjkl for panel navigation (vim-style, same as arrows)
-            KeyCode::Char('h') => self.focus = self.focus.left(),
-            KeyCode::Char('l') => self.focus = self.focus.right(),
-            KeyCode::Char('j') => self.focus = self.focus.down(),
-            KeyCode::Char('k') => self.focus = self.focus.up(),
+            KeyCode::Char('h') => self.set_focus(self.focus.left()),
+            KeyCode::Char('l') => self.set_focus(self.focus.right()),
+            KeyCode::Char('j') => self.set_focus(self.focus.down()),
+            KeyCode::Char('k') => self.set_focus(self.focus.up()),
 
             // swap/toggle shortcut
             KeyCode::Char('s') => self.handle_swap(),
@@ -540,7 +557,18 @@ impl App {
         use crossterm::event::KeyCode;
 
         match key {
-            KeyCode::Esc | KeyCode::Enter => {
+            KeyCode::Esc => {
+                self.input_mode = InputMode::Normal;
+                if let Some(ct) = &self.current_city_time {
+                    self.time_converter.input_hour = ct.datetime.hour();
+                    self.time_converter.input_minute = ct.datetime.minute();
+                } else {
+                    self.time_converter.set_to_now();
+                }
+                self.time_converter.clear_input_buffer();
+                self.update_time_conversion();
+            }
+            KeyCode::Enter => {
                 self.input_mode = InputMode::Normal;
             }
             KeyCode::Char('k') | KeyCode::Up => {

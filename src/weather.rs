@@ -267,6 +267,16 @@ pub const CITY_COORDS: &[CityCoords] = &[
         lat: 30.2672,
         lon: -97.7431,
     },
+    CityCoords {
+        name: "rio de janeiro",
+        lat: -22.9068,
+        lon: -43.1729,
+    },
+    CityCoords {
+        name: "rio",
+        lat: -22.9068,
+        lon: -43.1729,
+    },
 ];
 
 /// get coordinates for a city name
@@ -276,6 +286,10 @@ fn get_city_coords(city_name: &str) -> Option<(f64, f64)> {
         .iter()
         .find(|c| name_lower.contains(c.name))
         .map(|c| (c.lat, c.lon))
+}
+
+pub fn city_coords_by_name(city_name: &str) -> Option<(f64, f64)> {
+    get_city_coords(city_name)
 }
 
 /// wind direction from degrees

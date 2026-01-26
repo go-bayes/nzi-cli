@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+- Map now tracks the active panel: NZ weather highlights the selected city, time and currency show a world map route.
+- NZ highlighted city labels show the full city name with star markers.
+- Currency map uses currency-linked country centroids (NZD/AUD/USD/EUR/GBP/JPY).
+- Time edit now exits with Esc and restores the current NZ time.
+
 ## 0.1.7
 - Exchange rates now avoid approximate offline values; cache-only fallback with clearer messaging.
 - Weather shows stale/offline tags, uses location dates for weekday headers, and retries briefly on startup.

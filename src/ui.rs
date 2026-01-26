@@ -14,9 +14,11 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::app::{App, Focus, InputMode};
-use crate::map::{NZ_CITIES, NzMapCanvas, Sparkles};
+use crate::config::City;
+use crate::map::{NZ_CITIES, NzMapCanvas, Sparkles, WorldMapCanvas, WorldMarker};
 use crate::theme::{Theme, catppuccin};
 use crate::timezone::CityTime;
+use crate::weather::city_coords_by_name;
 
 /// main ui rendering function
 pub fn draw(frame: &mut Frame, app: &App) {
@@ -362,15 +364,400 @@ fn styled_block(title: &str, focused: bool) -> Block<'static> {
 
 /// draw the new zealand map panel with canvas/braille rendering
 fn draw_map_panel(frame: &mut Frame, area: Rect, app: &App) {
-    let highlight = app.current_city_time.as_ref().map(|t| t.city_code.clone());
+    let context = if app.focus == Focus::Map {
+        app.map_context
+    } else {
+        app.focus
+    };
 
-    frame.render_widget(
-        NzMapCanvas::new()
-            .highlight_city(highlight)
-            .tick(app.animation_frame as u64)
-            .focused(app.focus == Focus::Map),
-        area,
-    );
+    match context {
+        Focus::Weather => {
+            let highlight = Some(app.get_weather_city_code().to_string());
+            frame.render_widget(
+                NzMapCanvas::new()
+                    .highlight_city(highlight)
+                    .tick(app.animation_frame as u64)
+                    .focused(app.focus == Focus::Map),
+                area,
+            );
+        }
+        Focus::TimeConvert | Focus::Currency | Focus::Map => {
+            let (primary, secondary, label) = world_map_markers(app, context);
+            let title = format!("🌍 World map ({})", label);
+            frame.render_widget(
+                WorldMapCanvas::new()
+                    .primary(primary)
+                    .secondary(secondary)
+                    .title(title)
+                    .tick(app.animation_frame as u64)
+                    .focused(app.focus == Focus::Map),
+                area,
+            );
+        }
+    }
+}
+
+struct CountryMarker {
+    #[allow(dead_code)]
+    name: &'static str,
+    code: &'static str,
+    lat: f64,
+    lon: f64,
+}
+
+const COUNTRY_MARKERS: &[CountryMarker] = &[
+    CountryMarker {
+        name: "new zealand",
+        code: "NZ",
+        lat: -41.0,
+        lon: 174.0,
+    },
+    CountryMarker {
+        name: "australia",
+        code: "AUS",
+        lat: -25.0,
+        lon: 133.0,
+    },
+    CountryMarker {
+        name: "usa",
+        code: "USA",
+        lat: 39.5,
+        lon: -98.35,
+    },
+    CountryMarker {
+        name: "united states",
+        code: "USA",
+        lat: 39.5,
+        lon: -98.35,
+    },
+    CountryMarker {
+        name: "canada",
+        code: "CAN",
+        lat: 56.1,
+        lon: -106.3,
+    },
+    CountryMarker {
+        name: "mexico",
+        code: "MEX",
+        lat: 23.6,
+        lon: -102.6,
+    },
+    CountryMarker {
+        name: "brazil",
+        code: "BRA",
+        lat: -10.8,
+        lon: -52.9,
+    },
+    CountryMarker {
+        name: "argentina",
+        code: "ARG",
+        lat: -38.4,
+        lon: -63.6,
+    },
+    CountryMarker {
+        name: "chile",
+        code: "CHL",
+        lat: -35.7,
+        lon: -71.5,
+    },
+    CountryMarker {
+        name: "peru",
+        code: "PER",
+        lat: -9.2,
+        lon: -75.0,
+    },
+    CountryMarker {
+        name: "colombia",
+        code: "COL",
+        lat: 4.6,
+        lon: -74.1,
+    },
+    CountryMarker {
+        name: "uk",
+        code: "UK",
+        lat: 54.0,
+        lon: -2.0,
+    },
+    CountryMarker {
+        name: "united kingdom",
+        code: "UK",
+        lat: 54.0,
+        lon: -2.0,
+    },
+    CountryMarker {
+        name: "ireland",
+        code: "IRL",
+        lat: 53.1,
+        lon: -8.0,
+    },
+    CountryMarker {
+        name: "france",
+        code: "FRA",
+        lat: 46.2,
+        lon: 2.2,
+    },
+    CountryMarker {
+        name: "germany",
+        code: "DEU",
+        lat: 51.2,
+        lon: 10.5,
+    },
+    CountryMarker {
+        name: "netherlands",
+        code: "NLD",
+        lat: 52.1,
+        lon: 5.3,
+    },
+    CountryMarker {
+        name: "belgium",
+        code: "BEL",
+        lat: 50.5,
+        lon: 4.5,
+    },
+    CountryMarker {
+        name: "switzerland",
+        code: "CHE",
+        lat: 46.8,
+        lon: 8.2,
+    },
+    CountryMarker {
+        name: "austria",
+        code: "AUT",
+        lat: 47.5,
+        lon: 14.5,
+    },
+    CountryMarker {
+        name: "italy",
+        code: "ITA",
+        lat: 41.9,
+        lon: 12.6,
+    },
+    CountryMarker {
+        name: "spain",
+        code: "ESP",
+        lat: 40.4,
+        lon: -3.7,
+    },
+    CountryMarker {
+        name: "portugal",
+        code: "PRT",
+        lat: 39.7,
+        lon: -8.0,
+    },
+    CountryMarker {
+        name: "greece",
+        code: "GRC",
+        lat: 39.1,
+        lon: 22.9,
+    },
+    CountryMarker {
+        name: "poland",
+        code: "POL",
+        lat: 52.0,
+        lon: 19.1,
+    },
+    CountryMarker {
+        name: "czech",
+        code: "CZE",
+        lat: 49.8,
+        lon: 15.5,
+    },
+    CountryMarker {
+        name: "sweden",
+        code: "SWE",
+        lat: 62.0,
+        lon: 15.0,
+    },
+    CountryMarker {
+        name: "norway",
+        code: "NOR",
+        lat: 64.5,
+        lon: 11.5,
+    },
+    CountryMarker {
+        name: "finland",
+        code: "FIN",
+        lat: 64.0,
+        lon: 26.0,
+    },
+    CountryMarker {
+        name: "denmark",
+        code: "DNK",
+        lat: 56.0,
+        lon: 10.0,
+    },
+    CountryMarker {
+        name: "russia",
+        code: "RUS",
+        lat: 61.5,
+        lon: 105.0,
+    },
+    CountryMarker {
+        name: "ukraine",
+        code: "UKR",
+        lat: 49.0,
+        lon: 32.0,
+    },
+    CountryMarker {
+        name: "turkey",
+        code: "TUR",
+        lat: 39.0,
+        lon: 35.0,
+    },
+    CountryMarker {
+        name: "egypt",
+        code: "EGY",
+        lat: 26.8,
+        lon: 30.8,
+    },
+    CountryMarker {
+        name: "nigeria",
+        code: "NGA",
+        lat: 9.1,
+        lon: 8.7,
+    },
+    CountryMarker {
+        name: "kenya",
+        code: "KEN",
+        lat: 0.2,
+        lon: 37.9,
+    },
+    CountryMarker {
+        name: "south africa",
+        code: "ZAF",
+        lat: -29.0,
+        lon: 24.0,
+    },
+    CountryMarker {
+        name: "saudi",
+        code: "SAU",
+        lat: 23.9,
+        lon: 45.1,
+    },
+    CountryMarker {
+        name: "united arab emirates",
+        code: "ARE",
+        lat: 23.4,
+        lon: 53.8,
+    },
+    CountryMarker {
+        name: "qatar",
+        code: "QAT",
+        lat: 25.3,
+        lon: 51.2,
+    },
+    CountryMarker {
+        name: "india",
+        code: "IND",
+        lat: 21.0,
+        lon: 78.0,
+    },
+    CountryMarker {
+        name: "china",
+        code: "CHN",
+        lat: 35.9,
+        lon: 104.2,
+    },
+    CountryMarker {
+        name: "japan",
+        code: "JPN",
+        lat: 36.2,
+        lon: 138.2,
+    },
+    CountryMarker {
+        name: "south korea",
+        code: "KOR",
+        lat: 36.5,
+        lon: 127.9,
+    },
+    CountryMarker {
+        name: "singapore",
+        code: "SGP",
+        lat: 1.3521,
+        lon: 103.8198,
+    },
+    CountryMarker {
+        name: "indonesia",
+        code: "IDN",
+        lat: -2.5,
+        lon: 117.2,
+    },
+];
+
+fn world_marker_for_city(city: &City) -> Option<WorldMarker> {
+    let (lat, lon) = city_coords_by_name(&city.name)?;
+    Some(WorldMarker {
+        label: city.code.clone(),
+        lat,
+        lon,
+    })
+}
+
+fn world_marker_for_country_code(code: &str) -> Option<WorldMarker> {
+    let code_upper = code.to_uppercase();
+    COUNTRY_MARKERS
+        .iter()
+        .find(|c| c.code.eq_ignore_ascii_case(code_upper.as_str()))
+        .map(|c| WorldMarker {
+            label: c.code.to_string(),
+            lat: c.lat,
+            lon: c.lon,
+        })
+}
+
+fn currency_to_country_code(currency: &str) -> Option<&'static str> {
+    let currency_upper = currency.to_uppercase();
+    match currency_upper.as_str() {
+        "NZD" => Some("NZ"),
+        "AUD" => Some("AUS"),
+        "USD" => Some("USA"),
+        "EUR" => Some("FRA"),
+        "GBP" => Some("UK"),
+        "JPY" => Some("JPN"),
+        "BRL" => Some("BRA"),
+        _ => None,
+    }
+}
+
+fn world_marker_for_currency(currency: &str) -> Option<WorldMarker> {
+    let country_code = currency_to_country_code(currency)?;
+    world_marker_for_country_code(country_code)
+}
+
+fn world_map_markers(
+    app: &App,
+    context: Focus,
+) -> (Option<WorldMarker>, Option<WorldMarker>, &'static str) {
+    let (mut primary, mut secondary, label) = match context {
+        Focus::Currency => (
+            world_marker_for_currency(&app.currency_converter.from_currency),
+            world_marker_for_currency(&app.currency_converter.to_currency),
+            "Currency",
+        ),
+        Focus::TimeConvert | Focus::Map => (
+            app.city_by_code(&app.time_converter.from_city_code)
+                .and_then(world_marker_for_city),
+            app.city_by_code(&app.time_converter.to_city_code)
+                .and_then(world_marker_for_city),
+            "Time",
+        ),
+        Focus::Weather => (
+            app.city_by_code(&app.time_converter.from_city_code)
+                .and_then(world_marker_for_city),
+            app.city_by_code(&app.time_converter.to_city_code)
+                .and_then(world_marker_for_city),
+            "Time",
+        ),
+    };
+
+    if primary.is_none() {
+        primary = world_marker_for_city(&app.config.current_city);
+    }
+    if secondary.is_none() {
+        secondary = world_marker_for_city(&app.config.home_city);
+    }
+
+    (primary, secondary, label)
 }
 
 /// draw weather panel with current conditions and forecast-style layout (compact view)
