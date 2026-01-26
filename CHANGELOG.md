@@ -5,6 +5,7 @@
 - NZ highlighted city labels show the full city name with star markers.
 - Currency map uses currency-linked country centroids (NZD/AUD/USD/EUR/GBP/JPY).
 - Time edit now exits with Esc and restores the current NZ time.
+- Footer now shows a persistent time conversion or FX summary when those panels are focused.
 
 ## 0.1.7
 - Exchange rates now avoid approximate offline values; cache-only fallback with clearer messaging.

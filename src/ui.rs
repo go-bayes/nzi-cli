@@ -2005,23 +2005,56 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &App) {
         return;
     }
 
-    // single row: city codes (or status) on left, help hint on right
-    let left_content = if let Some((message, _)) = &app.status_message {
-        Line::from(vec![
-            Span::styled(" ℹ ", Style::default().fg(catppuccin::SAPPHIRE)),
-            Span::styled(message, Theme::text_dim()),
-        ])
-    } else {
-        // show NZ city codes
-        let codes: String = NZ_CITIES
-            .iter()
-            .map(|c| c.code)
-            .collect::<Vec<_>>()
-            .join(" · ");
-        Line::from(vec![
-            Span::styled(" NZ: ", Style::default().fg(catppuccin::GREEN)),
-            Span::styled(codes, Style::default().fg(catppuccin::OVERLAY1)),
-        ])
+    // single row: contextual info (or status) on left, help hint on right
+    let left_content = match app.focus {
+        Focus::Currency => {
+            let converter = &app.currency_converter;
+            let rate_line = if let Some(rate) = converter.rate {
+                format!("1 {} = {:.4} {}", converter.from_currency, rate, converter.to_currency)
+            } else {
+                format!(
+                    "{} → {} (rate pending)",
+                    converter.from_currency, converter.to_currency
+                )
+            };
+            Line::from(vec![
+                Span::styled(" FX: ", Style::default().fg(catppuccin::PEACH)),
+                Span::styled(rate_line, Style::default().fg(catppuccin::OVERLAY1)),
+            ])
+        }
+        Focus::TimeConvert => {
+            let converter = &app.time_converter;
+            let from = &converter.from_city_code;
+            let to = &converter.to_city_code;
+            let input = converter.format_input_time();
+            let result = converter.format_result_time();
+            Line::from(vec![
+                Span::styled(" Time: ", Style::default().fg(catppuccin::GREEN)),
+                Span::styled(
+                    format!("{} {} → {} {}", from, input, to, result),
+                    Style::default().fg(catppuccin::OVERLAY1),
+                ),
+            ])
+        }
+        _ => {
+            if let Some((message, _)) = &app.status_message {
+                Line::from(vec![
+                    Span::styled(" ℹ ", Style::default().fg(catppuccin::SAPPHIRE)),
+                    Span::styled(message, Theme::text_dim()),
+                ])
+            } else {
+                // show NZ city codes
+                let codes: String = NZ_CITIES
+                    .iter()
+                    .map(|c| c.code)
+                    .collect::<Vec<_>>()
+                    .join(" · ");
+                Line::from(vec![
+                    Span::styled(" NZ: ", Style::default().fg(catppuccin::GREEN)),
+                    Span::styled(codes, Style::default().fg(catppuccin::OVERLAY1)),
+                ])
+            }
+        }
     };
 
     // help hint for right side (margo style)
