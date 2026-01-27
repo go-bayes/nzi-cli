@@ -1,7 +1,5 @@
 ## Planning
-- Refactor with upgraded ratatui (likely major)
-- Add a customisation menu for currencies, countries, major cities, and static tables to control maps and focal city.
-- Define a config schema for map data sources, curated lists, and per-panel defaults, with safe fallbacks and user overrides.
+- Define a config schema for map data sources, curated lists, and per-panel defaults, with safe fallbacks/ user overrides.
 - Implement a searchable selector for currencies, countries, and cities with favourites and recent selections.
 - Allow export/import of user presets and a reset-to-defaults flow.
 
@@ -40,6 +38,3 @@ cities = { source = "builtin", path = "" }
 currency_pair = { from = "NZD", to = "USD" }
 time_pair = { from = "WLG", to = "NYC" }
 ```
-
-## Deferred
-- Defer ratatui upgrade; current ratatui pulls `lru 0.12.5` which is affected by a soundness issue in `IterMut` (Stacked Borrows). Risk noted; revisit when ready to upgrade ratatui to a version that depends on `lru >= 0.16.3`.

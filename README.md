@@ -1,6 +1,6 @@
 # nzi
 
-A terminal dashboard with useful information for thinking about New Zealand and its place in the world: local weather, world clocks, and currency conversion. 
+A terminal dashboard with useful information for thinking about New Zealand and its place in the world: local weather, world clocks, and currency conversion. (Note: planning to add customisation, so that the focal country can be any.)
 
 ![nzi static](images/nzi.png)
 
@@ -11,7 +11,7 @@ A terminal dashboard with useful information for thinking about New Zealand and 
 - **Currency Converter** - Live exchange rates between NZD and major currencies
 - **Time Converter** - Convert times between NZ and overseas cities (Useful for arranging meetings)
 
-Of course, you can get this information from a browser, but it's much nicer from the comfort of the terminal.
+Of course, you can get this information from a browser, but it's much nicer from the comfort of the terminal (just type 'nzi'). 
 
 ## Installation
 
@@ -36,10 +36,17 @@ Once Rust is installed, you can install/update this application by running:
 ```bash
 cargo install --git https://github.com/go-bayes/nzi-cli
 ```
+### Building from Source
 
+```bash
+git clone https://github.com/go-bayes/nzi-cli
+cd nzi-cli
+cargo build --release
+./target/release/nzi
+```
 ## Usage
 
-After installing, from your terminal just type `nzi` and then hit return/enter: the interface will spring forth to life.
+After installing, from your terminal, type `nzi` and then hit return/enter: the interface will spring forth to life.
 
 Use it to
 
@@ -137,7 +144,7 @@ animation_speed_ms = 100
 - **Weather**: [Open-Meteo](https://open-meteo.com/) (free, no API key required)
 - **Exchange Rates**: [ExchangeRate-API](https://www.exchangerate-api.com/) (free tier)
 
-## Default Cities (change configure to suit using `/edit`)
+### Default Cities (change configure to suit using `/edit`)
 
 ### NZ Cities (Weather)
 Auckland, Wellington, Christchurch, Dunedin
@@ -147,19 +154,7 @@ London, New York, Los Angeles, Austin, Paris, Sydney, Tokyo, Singapore
 
 ## Requirements
 
-- Terminal with Unicode support (for braille map and icons)
-- Internet connection (for live weather and exchange rates
-
-## Building from Source
-
-```bash
-git clone https://github.com/go-bayes/nzi-cli
-cd nzi-cli
-cargo build --release
-./target/release/nzi
-```
-
-## Fine print
+- Internet connection (for live weather and exchange rates)
 
 ### Weaknesses
 
