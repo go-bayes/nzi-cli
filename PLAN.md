@@ -1,4 +1,5 @@
 ## Planning
+- Prioritise responsive layout for the weather grid: compute widths from available space, clamp or wrap cells, and prefer compact view when the terminal is small.
 - Define a config schema for map data sources, curated lists, and per-panel defaults, with safe fallbacks/ user overrides.
 - Implement a searchable selector for currencies, countries, and cities with favourites and recent selections.
 - Allow export/import of user presets and a reset-to-defaults flow.
