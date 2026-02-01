@@ -231,7 +231,7 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     // version on the right
-    let version = "v0.1.5 ".to_string();
+    let version = format!("v{} ", env!("CARGO_PKG_VERSION"));
     let version_span = Span::styled(version, Style::default().fg(catppuccin::OVERLAY0));
 
     // center the title
@@ -623,6 +623,12 @@ const COUNTRY_MARKERS: &[CountryMarker] = &[
         lon: 37.9,
     },
     CountryMarker {
+        name: "ethiopia",
+        code: "ETH",
+        lat: 9.1,
+        lon: 40.5,
+    },
+    CountryMarker {
         name: "south africa",
         code: "ZAF",
         lat: -29.0,
@@ -715,6 +721,7 @@ fn currency_to_country_code(currency: &str) -> Option<&'static str> {
         "GBP" => Some("UK"),
         "JPY" => Some("JPN"),
         "BRL" => Some("BRA"),
+        "ETB" => Some("ETH"),
         _ => None,
     }
 }

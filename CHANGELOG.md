@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+- Addis Ababa (ADD) with Ethiopia and Africa/Addis_Ababa added to tracked cities; ETB added to currency cycle with map marker support.
+- Weather and map lookups now resolve Addis Ababa coordinates.
+- TUI version label now follows the package version.
+
 ## 0.2.0
 - Map now tracks the active panel: NZ weather highlights the selected city, time and currency show a world map route.
 - NZ highlighted city labels show the full city name with star markers.

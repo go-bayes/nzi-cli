@@ -277,6 +277,16 @@ pub const CITY_COORDS: &[CityCoords] = &[
         lat: -22.9068,
         lon: -43.1729,
     },
+    CityCoords {
+        name: "addis ababa",
+        lat: 8.9806,
+        lon: 38.7578,
+    },
+    CityCoords {
+        name: "addis",
+        lat: 8.9806,
+        lon: 38.7578,
+    },
 ];
 
 /// get coordinates for a city name

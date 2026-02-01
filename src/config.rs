@@ -117,6 +117,16 @@ impl City {
             currency: "BRL".to_string(),
         }
     }
+
+    pub fn addis_ababa() -> Self {
+        Self {
+            name: "Addis Ababa".to_string(),
+            code: "ADD".to_string(),
+            country: "Ethiopia".to_string(),
+            timezone: "Africa/Addis_Ababa".to_string(),
+            currency: "ETB".to_string(),
+        }
+    }
 }
 
 /// display preferences
@@ -183,6 +193,7 @@ impl Default for Config {
                 City::tokyo(),
                 City::singapore(),
                 City::rio(),
+                City::addis_ababa(),
             ],
             display: DisplayConfig::default(),
         }
@@ -213,6 +224,7 @@ impl Config {
                 toml::from_str(&content).context("failed to parse config file")?;
             let mut updated = false;
             updated |= config.ensure_tracked_city(City::rio());
+            updated |= config.ensure_tracked_city(City::addis_ababa());
             if updated {
                 config.save()?;
             }
