@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2
+- Kuala Lumpur (KL) and Berlin (BE) added to tracked cities with coordinates for world map routes.
+- MYR added to the currency cycle with Malaysia map marker support.
+- EUR map marker now uses Germany (DEU) for a single, consistent anchor.
+- World map titles and panel headers now avoid emoji for clearer labels.
+- Aotearoa map title now reads “Aotearoa New Zealand”.
+
 ## 0.2.1
 - Addis Ababa (ADD) with Ethiopia and Africa/Addis_Ababa added to tracked cities; ETB added to currency cycle with map marker support.
 - Weather and map lookups now resolve Addis Ababa coordinates.

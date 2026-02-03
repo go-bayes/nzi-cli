@@ -139,6 +139,7 @@ pub const CURRENCY_PAIRS: &[(&str, &str)] = &[
     ("NZD", "EUR"),
     ("NZD", "GBP"),
     ("NZD", "AUD"),
+    ("NZD", "MYR"),
     ("NZD", "JPY"),
     ("NZD", "BRL"),
     ("NZD", "ETB"),

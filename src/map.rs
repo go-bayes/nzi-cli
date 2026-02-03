@@ -175,7 +175,7 @@ impl Widget for NzMapCanvas {
                     .borders(Borders::ALL)
                     .border_type(border_type)
                     .border_style(Style::default().fg(border_color))
-                    .title(Span::styled(" 🥝 Aotearoa ", title_style)),
+                    .title(Span::styled(" Aotearoa New Zealand ", title_style)),
             )
             .background_color(catppuccin::BASE)
             .marker(Marker::Braille)

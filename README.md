@@ -15,8 +15,17 @@ Of course, you can get this information from a browser, but it's much nicer from
 
 ## Installation
 
-### Install Rust (if you don't have it)
+### If you have Rust, install or update using cargo
 
+Run this: 
+
+```bash
+cargo install --git https://github.com/go-bayes/nzi-cli
+```
+
+### Install Rust (one-time setup)
+
+If you do not already have Rust, run this:
 
 ```bash
 # macOS / Linux
@@ -28,14 +37,6 @@ source ~/.cargo/env
 
 For Windows, download the installer from [rustup.rs](https://rustup.rs).
 
-
-### Install using cargo
-
-Once Rust is installed, you can install/update this application by running:
-
-```bash
-cargo install --git https://github.com/go-bayes/nzi-cli
-```
 ### Building from Source
 
 ```bash

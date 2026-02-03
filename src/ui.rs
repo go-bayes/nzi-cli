@@ -18,7 +18,7 @@ use crate::config::City;
 use crate::map::{NZ_CITIES, NzMapCanvas, Sparkles, WorldMapCanvas, WorldMarker};
 use crate::theme::{Theme, catppuccin};
 use crate::timezone::CityTime;
-use crate::weather::city_coords_by_name;
+use crate::weather::{city_coords_by_code, city_coords_by_name};
 
 /// main ui rendering function
 pub fn draw(frame: &mut Frame, app: &App) {
@@ -383,7 +383,7 @@ fn draw_map_panel(frame: &mut Frame, area: Rect, app: &App) {
         }
         Focus::TimeConvert | Focus::Currency | Focus::Map => {
             let (primary, secondary, label) = world_map_markers(app, context);
-            let title = format!("🌍 World map ({})", label);
+            let title = format!("World map ({})", label);
             frame.render_widget(
                 WorldMapCanvas::new()
                     .primary(primary)
@@ -495,6 +495,12 @@ const COUNTRY_MARKERS: &[CountryMarker] = &[
         code: "FRA",
         lat: 46.2,
         lon: 2.2,
+    },
+    CountryMarker {
+        name: "germany",
+        code: "DEU",
+        lat: 51.1657,
+        lon: 10.4515,
     },
     CountryMarker {
         name: "germany",
@@ -683,6 +689,12 @@ const COUNTRY_MARKERS: &[CountryMarker] = &[
         lon: 103.8198,
     },
     CountryMarker {
+        name: "malaysia",
+        code: "MYS",
+        lat: 4.2105,
+        lon: 101.9758,
+    },
+    CountryMarker {
         name: "indonesia",
         code: "IDN",
         lat: -2.5,
@@ -691,7 +703,8 @@ const COUNTRY_MARKERS: &[CountryMarker] = &[
 ];
 
 fn world_marker_for_city(city: &City) -> Option<WorldMarker> {
-    let (lat, lon) = city_coords_by_name(&city.name)?;
+    let (lat, lon) = city_coords_by_code(&city.code)
+        .or_else(|| city_coords_by_name(&city.name))?;
     Some(WorldMarker {
         label: city.code.clone(),
         lat,
@@ -717,9 +730,10 @@ fn currency_to_country_code(currency: &str) -> Option<&'static str> {
         "NZD" => Some("NZ"),
         "AUD" => Some("AUS"),
         "USD" => Some("USA"),
-        "EUR" => Some("FRA"),
+        "EUR" => Some("DEU"),
         "GBP" => Some("UK"),
         "JPY" => Some("JPN"),
+        "MYR" => Some("MYS"),
         "BRL" => Some("BRA"),
         "ETB" => Some("ETH"),
         _ => None,
@@ -770,7 +784,7 @@ fn world_map_markers(
 /// draw weather panel with current conditions and forecast-style layout (compact view)
 fn draw_weather_panel(frame: &mut Frame, area: Rect, app: &App) {
     let focused = app.focus == Focus::Weather;
-    let block = styled_block("🌤 Weather [s:view] [space:city]", focused);
+    let block = styled_block("Weather [s:view] [space:city]", focused);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -1188,7 +1202,7 @@ fn push_grid_line(lines: &mut Vec<Line<'static>>, padding: usize, spans: Vec<Spa
 /// draw weather panel with wttr-style 3-day grid
 fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
     let focused = app.focus == Focus::Weather;
-    let block = styled_block("🌤 Weather [s:view] [space:city]", focused);
+    let block = styled_block("Weather [s:view] [space:city]", focused);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -1522,7 +1536,7 @@ fn month_name(month: &str) -> &'static str {
 /// draw time panel - simplified NZ → overseas city
 fn draw_time_panel(frame: &mut Frame, area: Rect, app: &App) {
     let focused = app.focus == Focus::TimeConvert;
-    let block = styled_block("🕐 Time [space:city] [s:swap] [e:edit/Esc]", focused);
+    let block = styled_block("Time [space:city] [s:swap] [e:edit/Esc]", focused);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -1871,7 +1885,7 @@ fn draw_time_converter_compact(frame: &mut Frame, area: Rect, app: &App) {
 /// draw currency panel with bidirectional conversion
 fn draw_currency_panel(frame: &mut Frame, area: Rect, app: &App) {
     let focused = app.focus == Focus::Currency;
-    let block = styled_block("💱 Currency [space:cycle] [s:swap] [e:edit/Esc]", focused);
+    let block = styled_block("Currency [space:cycle] [s:swap] [e:edit/Esc]", focused);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 

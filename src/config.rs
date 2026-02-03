@@ -88,12 +88,32 @@ impl City {
         }
     }
 
+    pub fn kuala_lumpur() -> Self {
+        Self {
+            name: "Kuala Lumpur".to_string(),
+            code: "KL".to_string(),
+            country: "Malaysia".to_string(),
+            timezone: "Asia/Kuala_Lumpur".to_string(),
+            currency: "MYR".to_string(),
+        }
+    }
+
     pub fn paris() -> Self {
         Self {
             name: "Paris".to_string(),
             code: "PAR".to_string(),
             country: "France".to_string(),
             timezone: "Europe/Paris".to_string(),
+            currency: "EUR".to_string(),
+        }
+    }
+
+    pub fn berlin() -> Self {
+        Self {
+            name: "Berlin".to_string(),
+            code: "BE".to_string(),
+            country: "Germany".to_string(),
+            timezone: "Europe/Berlin".to_string(),
             currency: "EUR".to_string(),
         }
     }
@@ -189,9 +209,11 @@ impl Default for Config {
                 City::los_angeles(),
                 City::austin(),
                 City::paris(),
+                City::berlin(),
                 City::sydney(),
                 City::tokyo(),
                 City::singapore(),
+                City::kuala_lumpur(),
                 City::rio(),
                 City::addis_ababa(),
             ],
@@ -225,6 +247,8 @@ impl Config {
             let mut updated = false;
             updated |= config.ensure_tracked_city(City::rio());
             updated |= config.ensure_tracked_city(City::addis_ababa());
+            updated |= config.ensure_tracked_city(City::kuala_lumpur());
+            updated |= config.ensure_tracked_city(City::berlin());
             if updated {
                 config.save()?;
             }

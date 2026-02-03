@@ -175,6 +175,12 @@ pub struct CityCoords {
     pub lon: f64,
 }
 
+pub struct CityCodeCoords {
+    pub code: &'static str,
+    pub lat: f64,
+    pub lon: f64,
+}
+
 /// known city coordinates
 pub const CITY_COORDS: &[CityCoords] = &[
     CityCoords {
@@ -248,6 +254,16 @@ pub const CITY_COORDS: &[CityCoords] = &[
         lon: 103.8198,
     },
     CityCoords {
+        name: "kuala lumpur",
+        lat: 3.1390,
+        lon: 101.6869,
+    },
+    CityCoords {
+        name: "kl",
+        lat: 3.1390,
+        lon: 101.6869,
+    },
+    CityCoords {
         name: "los angeles",
         lat: 34.0522,
         lon: -118.2437,
@@ -261,6 +277,11 @@ pub const CITY_COORDS: &[CityCoords] = &[
         name: "paris",
         lat: 48.8566,
         lon: 2.3522,
+    },
+    CityCoords {
+        name: "berlin",
+        lat: 52.5200,
+        lon: 13.4050,
     },
     CityCoords {
         name: "austin",
@@ -289,6 +310,74 @@ pub const CITY_COORDS: &[CityCoords] = &[
     },
 ];
 
+pub const CITY_CODE_COORDS: &[CityCodeCoords] = &[
+    CityCodeCoords {
+        code: "WLG",
+        lat: -41.2865,
+        lon: 174.7762,
+    },
+    CityCodeCoords {
+        code: "NYC",
+        lat: 40.7128,
+        lon: -74.0060,
+    },
+    CityCodeCoords {
+        code: "LDN",
+        lat: 51.5074,
+        lon: -0.1278,
+    },
+    CityCodeCoords {
+        code: "SYD",
+        lat: -33.8688,
+        lon: 151.2093,
+    },
+    CityCodeCoords {
+        code: "TYO",
+        lat: 35.6762,
+        lon: 139.6503,
+    },
+    CityCodeCoords {
+        code: "LAX",
+        lat: 34.0522,
+        lon: -118.2437,
+    },
+    CityCodeCoords {
+        code: "SIN",
+        lat: 1.3521,
+        lon: 103.8198,
+    },
+    CityCodeCoords {
+        code: "PAR",
+        lat: 48.8566,
+        lon: 2.3522,
+    },
+    CityCodeCoords {
+        code: "AUS",
+        lat: 30.2672,
+        lon: -97.7431,
+    },
+    CityCodeCoords {
+        code: "RIO",
+        lat: -22.9068,
+        lon: -43.1729,
+    },
+    CityCodeCoords {
+        code: "ADD",
+        lat: 8.9806,
+        lon: 38.7578,
+    },
+    CityCodeCoords {
+        code: "KL",
+        lat: 3.1390,
+        lon: 101.6869,
+    },
+    CityCodeCoords {
+        code: "BE",
+        lat: 52.5200,
+        lon: 13.4050,
+    },
+];
+
 /// get coordinates for a city name
 fn get_city_coords(city_name: &str) -> Option<(f64, f64)> {
     let name_lower = city_name.to_lowercase();
@@ -300,6 +389,18 @@ fn get_city_coords(city_name: &str) -> Option<(f64, f64)> {
 
 pub fn city_coords_by_name(city_name: &str) -> Option<(f64, f64)> {
     get_city_coords(city_name)
+}
+
+fn get_city_coords_by_code(code: &str) -> Option<(f64, f64)> {
+    let code_upper = code.to_uppercase();
+    CITY_CODE_COORDS
+        .iter()
+        .find(|c| c.code.eq_ignore_ascii_case(code_upper.as_str()))
+        .map(|c| (c.lat, c.lon))
+}
+
+pub fn city_coords_by_code(code: &str) -> Option<(f64, f64)> {
+    get_city_coords_by_code(code)
 }
 
 /// wind direction from degrees
