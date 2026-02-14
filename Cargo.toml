@@ -1,6 +1,6 @@
 [package]
 name = "nzi-cli"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2024"
 description = "New Zealand Around The World - a beautiful TUI connecting NZ to the world"
 authors = ["Joseph A Bulbulia"]

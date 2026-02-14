@@ -143,6 +143,7 @@ pub const CURRENCY_PAIRS: &[(&str, &str)] = &[
     ("NZD", "JPY"),
     ("NZD", "BRL"),
     ("NZD", "ETB"),
+    ("NZD", "BDT"),
 ];
 
 /// currency converter widget state

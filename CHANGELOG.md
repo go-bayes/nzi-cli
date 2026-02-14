@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.3
+- Added Dhaka (DAC), Bangladesh (BDT), and weather/world-map coordinates for Bangladesh.
+- Added Bangladesh country marker and currency mapping for map and conversion panels.
+- Version bumped to 0.2.3 in crate metadata and lockfile.
+
 ## 0.2.2
 - Kuala Lumpur (KL) and Berlin (BE) added to tracked cities with coordinates for world map routes.
 - MYR added to the currency cycle with Malaysia map marker support.

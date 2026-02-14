@@ -304,6 +304,11 @@ pub const CITY_COORDS: &[CityCoords] = &[
         lon: 38.7578,
     },
     CityCoords {
+        name: "dhaka",
+        lat: 23.8103,
+        lon: 90.4125,
+    },
+    CityCoords {
         name: "addis",
         lat: 8.9806,
         lon: 38.7578,
@@ -375,6 +380,11 @@ pub const CITY_CODE_COORDS: &[CityCodeCoords] = &[
         code: "BE",
         lat: 52.5200,
         lon: 13.4050,
+    },
+    CityCodeCoords {
+        code: "DAC",
+        lat: 23.8103,
+        lon: 90.4125,
     },
 ];
 

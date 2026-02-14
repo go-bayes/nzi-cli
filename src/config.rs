@@ -147,6 +147,16 @@ impl City {
             currency: "ETB".to_string(),
         }
     }
+
+    pub fn dhaka() -> Self {
+        Self {
+            name: "Dhaka".to_string(),
+            code: "DAC".to_string(),
+            country: "Bangladesh".to_string(),
+            timezone: "Asia/Dhaka".to_string(),
+            currency: "BDT".to_string(),
+        }
+    }
 }
 
 /// display preferences
@@ -216,6 +226,7 @@ impl Default for Config {
                 City::kuala_lumpur(),
                 City::rio(),
                 City::addis_ababa(),
+                City::dhaka(),
             ],
             display: DisplayConfig::default(),
         }
@@ -249,6 +260,7 @@ impl Config {
             updated |= config.ensure_tracked_city(City::addis_ababa());
             updated |= config.ensure_tracked_city(City::kuala_lumpur());
             updated |= config.ensure_tracked_city(City::berlin());
+            updated |= config.ensure_tracked_city(City::dhaka());
             if updated {
                 config.save()?;
             }

@@ -665,6 +665,12 @@ const COUNTRY_MARKERS: &[CountryMarker] = &[
         lon: 78.0,
     },
     CountryMarker {
+        name: "bangladesh",
+        code: "BGD",
+        lat: 23.685,
+        lon: 90.3563,
+    },
+    CountryMarker {
         name: "china",
         code: "CHN",
         lat: 35.9,
@@ -736,6 +742,7 @@ fn currency_to_country_code(currency: &str) -> Option<&'static str> {
         "MYR" => Some("MYS"),
         "BRL" => Some("BRA"),
         "ETB" => Some("ETH"),
+        "BDT" => Some("BGD"),
         _ => None,
     }
 }
