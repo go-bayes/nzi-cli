@@ -4,6 +4,7 @@
 - Added Dhaka (DAC), Bangladesh (BDT), and weather/world-map coordinates for Bangladesh.
 - Added Bangladesh country marker and currency mapping for map and conversion panels.
 - Version bumped to 0.2.3 in crate metadata and lockfile.
+- Addressed transitive dependency vulnerabilities reported by `cargo audit` (RUSTSEC-2026-0007, RUSTSEC-2026-0009) by updating patched crate versions.
 
 ## 0.2.2
 - Kuala Lumpur (KL) and Berlin (BE) added to tracked cities with coordinates for world map routes.
