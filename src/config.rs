@@ -157,6 +157,16 @@ impl City {
             currency: "BDT".to_string(),
         }
     }
+
+    pub fn beijing() -> Self {
+        Self {
+            name: "Beijing".to_string(),
+            code: "BJS".to_string(),
+            country: "China".to_string(),
+            timezone: "Asia/Shanghai".to_string(),
+            currency: "CNY".to_string(),
+        }
+    }
 }
 
 /// display preferences
@@ -227,6 +237,7 @@ impl Default for Config {
                 City::rio(),
                 City::addis_ababa(),
                 City::dhaka(),
+                City::beijing(),
             ],
             display: DisplayConfig::default(),
         }
@@ -261,6 +272,7 @@ impl Config {
             updated |= config.ensure_tracked_city(City::kuala_lumpur());
             updated |= config.ensure_tracked_city(City::berlin());
             updated |= config.ensure_tracked_city(City::dhaka());
+            updated |= config.ensure_tracked_city(City::beijing());
             if updated {
                 config.save()?;
             }

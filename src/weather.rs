@@ -309,6 +309,11 @@ pub const CITY_COORDS: &[CityCoords] = &[
         lon: 90.4125,
     },
     CityCoords {
+        name: "beijing",
+        lat: 39.9042,
+        lon: 116.4074,
+    },
+    CityCoords {
         name: "addis",
         lat: 8.9806,
         lon: 38.7578,
@@ -385,6 +390,11 @@ pub const CITY_CODE_COORDS: &[CityCodeCoords] = &[
         code: "DAC",
         lat: 23.8103,
         lon: 90.4125,
+    },
+    CityCodeCoords {
+        code: "BJS",
+        lat: 39.9042,
+        lon: 116.4074,
     },
 ];
 

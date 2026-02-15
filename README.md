@@ -7,7 +7,7 @@ A terminal dashboard with useful information for thinking about New Zealand and 
 ## Features
 
 - **NZ Weather** - Current conditions and 3-day forecast for NZ cities (Auckland, Wellington, Christchurch, Dunedin) with wttr-style grid view
-- **World Clocks** - Track time across Wellington and your home city (London, NYC, LA, Austin, Paris, Sydney, Tokyo, Singapore, Dhaka)
+- **World Clocks** - Track time across Wellington and your home city (London, NYC, LA, Austin, Paris, Sydney, Tokyo, Singapore, Dhaka, Beijing)
 - **Currency Converter** - Live exchange rates between NZD and major currencies
 - **Time Converter** - Convert times between NZ and overseas cities (Useful for arranging meetings)
 
@@ -151,7 +151,7 @@ animation_speed_ms = 100
 Auckland, Wellington, Christchurch, Dunedin
 
 ### World Cities (Time/Currency)
-London, New York, Los Angeles, Austin, Paris, Sydney, Tokyo, Singapore, Dhaka
+London, New York, Los Angeles, Austin, Paris, Sydney, Tokyo, Singapore, Dhaka, Beijing
 
 ## Requirements
 

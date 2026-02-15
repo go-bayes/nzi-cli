@@ -743,6 +743,7 @@ fn currency_to_country_code(currency: &str) -> Option<&'static str> {
         "BRL" => Some("BRA"),
         "ETB" => Some("ETH"),
         "BDT" => Some("BGD"),
+        "CNY" => Some("CHN"),
         _ => None,
     }
 }
