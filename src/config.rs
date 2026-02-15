@@ -111,7 +111,7 @@ impl City {
     pub fn berlin() -> Self {
         Self {
             name: "Berlin".to_string(),
-            code: "BE".to_string(),
+            code: "BER".to_string(),
             country: "Germany".to_string(),
             timezone: "Europe/Berlin".to_string(),
             currency: "EUR".to_string(),
@@ -317,7 +317,7 @@ impl Config {
         if self
             .tracked_cities
             .iter()
-            .any(|c| c.code.eq_ignore_ascii_case(&city.code))
+            .any(|c| c.code.eq_ignore_ascii_case(&city.code) || c.name.eq_ignore_ascii_case(&city.name))
         {
             return false;
         }
