@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4
+- Swapped the default overseas home city from New York (NYC) to Boston (BOS) to preserve existing route and map functionality.
+- Added Boston coordinates and code mapping for weather and time-map rendering.
+- Version bumped to 0.2.4 in crate metadata and lockfile.
+- Added backward-compatible config migration: existing NYC/New York city entries are normalised to BOS/Boston.
+
 ## 0.2.3
 - Added Dhaka (DAC), Bangladesh (BDT), and weather/world-map coordinates for Bangladesh.
 - Added Bangladesh country marker and currency mapping for map and conversion panels.

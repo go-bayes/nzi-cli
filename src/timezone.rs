@@ -148,7 +148,7 @@ impl Default for TimeConverter {
         let now = Local::now();
         Self {
             from_city_code: "WLG".to_string(),
-            to_city_code: "NYC".to_string(),
+            to_city_code: "BOS".to_string(),
             input_hour: now.hour(),
             input_minute: now.minute(),
             result_hour: 0,

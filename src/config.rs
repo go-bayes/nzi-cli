@@ -4,6 +4,7 @@
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
@@ -28,10 +29,10 @@ impl City {
         }
     }
 
-    pub fn new_york() -> Self {
+    pub fn boston() -> Self {
         Self {
-            name: "New York".to_string(),
-            code: "NYC".to_string(),
+            name: "Boston".to_string(),
+            code: "BOS".to_string(),
             country: "USA".to_string(),
             timezone: "America/New_York".to_string(),
             currency: "USD".to_string(),
@@ -221,8 +222,8 @@ impl Default for Config {
         Self {
             // wellington is home - NZ anchor city
             current_city: City::wellington(),
-            // new york as primary world city (for "around the world")
-            home_city: City::new_york(),
+            // boston as primary world city (for "around the world")
+            home_city: City::boston(),
             // track other world cities for world clock
             tracked_cities: vec![
                 City::london(),
@@ -267,6 +268,7 @@ impl Config {
             let mut config: Config =
                 toml::from_str(&content).context("failed to parse config file")?;
             let mut updated = false;
+            updated |= config.normalize_legacy_cities();
             updated |= config.ensure_tracked_city(City::rio());
             updated |= config.ensure_tracked_city(City::addis_ababa());
             updated |= config.ensure_tracked_city(City::kuala_lumpur());
@@ -323,5 +325,92 @@ impl Config {
         }
         self.tracked_cities.push(city);
         true
+    }
+
+    fn normalize_city_name_and_code_to_boston(city: &mut City) -> bool {
+        if city.code.eq_ignore_ascii_case("NYC") || city.name.eq_ignore_ascii_case("New York") {
+            if city.code != "BOS" || city.name != "Boston" {
+                city.code = "BOS".to_string();
+                city.name = "Boston".to_string();
+                return true;
+            }
+        }
+        false
+    }
+
+    fn dedupe_tracked_cities(&mut self) -> bool {
+        let mut seen = HashSet::new();
+        let original_len = self.tracked_cities.len();
+
+        self.tracked_cities.retain(|city| seen.insert(city.code.to_uppercase()));
+
+        self.tracked_cities.len() != original_len
+    }
+
+    fn normalize_legacy_cities(&mut self) -> bool {
+        let mut updated = false;
+
+        updated |= Self::normalize_city_name_and_code_to_boston(&mut self.home_city);
+
+        for city in &mut self.tracked_cities {
+            updated |= Self::normalize_city_name_and_code_to_boston(city);
+        }
+
+        updated |= self.dedupe_tracked_cities();
+
+        updated
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn legacy_new_york_city() -> City {
+        let mut city = City::boston();
+        city.name = "New York".to_string();
+        city.code = "NYC".to_string();
+        city
+    }
+
+    #[test]
+    fn normalises_legacy_home_city_to_boston() {
+        let mut config = Config::default();
+        config.home_city = legacy_new_york_city();
+
+        let updated = config.normalize_legacy_cities();
+        assert!(updated);
+        assert_eq!(config.home_city.code, "BOS");
+        assert_eq!(config.home_city.name, "Boston");
+    }
+
+    #[test]
+    fn preserves_boston_without_changing() {
+        let mut config = Config::default();
+
+        let updated = config.normalize_legacy_cities();
+        assert!(!updated);
+        assert_eq!(config.home_city.code, "BOS");
+        assert_eq!(config.home_city.name, "Boston");
+    }
+
+    #[test]
+    fn normalises_legacy_tracked_cities_and_dedupes() {
+        let mut config = Config::default();
+        config.tracked_cities.push(legacy_new_york_city());
+        config.tracked_cities.push(City::boston());
+
+        let updated = config.normalize_legacy_cities();
+        assert!(updated);
+        assert!(!config
+            .tracked_cities
+            .iter()
+            .any(|city| city.code.eq_ignore_ascii_case("NYC")));
+        let bos_count = config
+            .tracked_cities
+            .iter()
+            .filter(|city| city.code.eq_ignore_ascii_case("BOS"))
+            .count();
+        assert_eq!(bos_count, 1);
     }
 }

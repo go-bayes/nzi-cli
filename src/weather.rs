@@ -229,9 +229,9 @@ pub const CITY_COORDS: &[CityCoords] = &[
         lon: 168.6626,
     },
     CityCoords {
-        name: "new york",
-        lat: 40.7128,
-        lon: -74.0060,
+        name: "boston",
+        lat: 42.3601,
+        lon: -71.0589,
     },
     CityCoords {
         name: "london",
@@ -327,9 +327,9 @@ pub const CITY_CODE_COORDS: &[CityCodeCoords] = &[
         lon: 174.7762,
     },
     CityCodeCoords {
-        code: "NYC",
-        lat: 40.7128,
-        lon: -74.0060,
+        code: "BOS",
+        lat: 42.3601,
+        lon: -71.0589,
     },
     CityCodeCoords {
         code: "LDN",
