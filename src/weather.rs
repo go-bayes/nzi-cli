@@ -382,7 +382,7 @@ pub const CITY_CODE_COORDS: &[CityCodeCoords] = &[
         lon: 101.6869,
     },
     CityCodeCoords {
-        code: "BE",
+        code: "BER",
         lat: 52.5200,
         lon: 13.4050,
     },

@@ -119,7 +119,7 @@ currency = "NZD"
 [home_city]
 name = "London"
 code = "LDN"
-country = "UK"
+country = "United Kingdom"
 timezone = "Europe/London"
 currency = "GBP"
 

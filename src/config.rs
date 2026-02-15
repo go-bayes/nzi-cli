@@ -42,7 +42,7 @@ impl City {
         Self {
             name: "London".to_string(),
             code: "LDN".to_string(),
-            country: "UK".to_string(),
+            country: "United Kingdom".to_string(),
             timezone: "Europe/London".to_string(),
             currency: "GBP".to_string(),
         }

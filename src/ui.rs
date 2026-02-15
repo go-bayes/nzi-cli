@@ -408,7 +408,7 @@ struct CountryMarker {
 const COUNTRY_MARKERS: &[CountryMarker] = &[
     CountryMarker {
         name: "new zealand",
-        code: "NZ",
+        code: "NZL",
         lat: -41.0,
         lon: 174.0,
     },
@@ -474,13 +474,13 @@ const COUNTRY_MARKERS: &[CountryMarker] = &[
     },
     CountryMarker {
         name: "uk",
-        code: "UK",
+        code: "GBR",
         lat: 54.0,
         lon: -2.0,
     },
     CountryMarker {
         name: "united kingdom",
-        code: "UK",
+        code: "GBR",
         lat: 54.0,
         lon: -2.0,
     },
@@ -733,11 +733,11 @@ fn world_marker_for_country_code(code: &str) -> Option<WorldMarker> {
 fn currency_to_country_code(currency: &str) -> Option<&'static str> {
     let currency_upper = currency.to_uppercase();
     match currency_upper.as_str() {
-        "NZD" => Some("NZ"),
+        "NZD" => Some("NZL"),
         "AUD" => Some("AUS"),
         "USD" => Some("USA"),
         "EUR" => Some("DEU"),
-        "GBP" => Some("UK"),
+        "GBP" => Some("GBR"),
         "JPY" => Some("JPN"),
         "MYR" => Some("MYS"),
         "BRL" => Some("BRA"),
