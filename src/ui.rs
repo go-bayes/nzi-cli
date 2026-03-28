@@ -43,10 +43,116 @@ pub fn draw(frame: &mut Frame, app: &App) {
     draw_content(frame, main_chunks[1], app);
     draw_footer(frame, main_chunks[2], app);
 
-    // help overlay
-    if app.show_help {
+    if app.picker.is_some() {
+        draw_picker_overlay(frame, area, app);
+    } else if app.show_help {
         draw_help_overlay(frame, area);
     }
+}
+
+fn draw_picker_overlay(frame: &mut Frame, area: Rect, app: &App) {
+    let title = app.picker_title().unwrap_or_else(|| "Picker".to_string());
+    let prompt = app.picker_prompt().unwrap_or("");
+    let Some(picker) = app.picker.as_ref() else {
+        return;
+    };
+    let options = app.picker_options();
+
+    let popup_width = 64.min(area.width.saturating_sub(4));
+    let popup_height = 16.min(area.height.saturating_sub(4));
+    let x = (area.width.saturating_sub(popup_width)) / 2;
+    let y = (area.height.saturating_sub(popup_height)) / 2;
+    let popup_area = Rect::new(x, y, popup_width, popup_height);
+
+    frame.render_widget(
+        Block::default().style(Style::default().bg(catppuccin::BASE)),
+        popup_area,
+    );
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Double)
+        .border_style(Style::default().fg(catppuccin::YELLOW))
+        .title(Span::styled(
+            format!(" {} [Esc] ", title),
+            Style::default()
+                .fg(catppuccin::YELLOW)
+                .add_modifier(Modifier::BOLD),
+        ));
+    let inner = block.inner(popup_area);
+    frame.render_widget(block, popup_area);
+
+    let mut lines = vec![
+        Line::from(vec![
+            Span::styled(" Search: ", Style::default().fg(catppuccin::PEACH)),
+            Span::styled(
+                format!("{}█", picker.query),
+                Style::default().fg(catppuccin::TEXT),
+            ),
+        ]),
+        Line::from(vec![Span::styled(
+            prompt,
+            Style::default().fg(catppuccin::OVERLAY0),
+        )]),
+        Line::from(""),
+    ];
+
+    if options.is_empty() {
+        lines.push(Line::from(vec![Span::styled(
+            "No matches",
+            Style::default().fg(catppuccin::RED),
+        )]));
+    } else {
+        let selected = picker.selected.min(options.len().saturating_sub(1));
+        let mut start = selected.saturating_sub(3);
+        let end = (start + 8).min(options.len());
+        if end - start < 8 && end == options.len() {
+            start = end.saturating_sub(8);
+        }
+
+        for (index, option) in options[start..end].iter().enumerate() {
+            let absolute_index = start + index;
+            let is_selected = absolute_index == selected;
+            lines.push(Line::from(vec![
+                Span::styled(
+                    if is_selected { "▸ " } else { "  " },
+                    Style::default().fg(if is_selected {
+                        catppuccin::GREEN
+                    } else {
+                        catppuccin::SURFACE2
+                    }),
+                ),
+                Span::styled(
+                    format!("{:<26}", option.label),
+                    Style::default().fg(if is_selected {
+                        catppuccin::TEXT
+                    } else {
+                        catppuccin::SUBTEXT1
+                    }),
+                ),
+                Span::styled(
+                    option.detail.clone(),
+                    Style::default().fg(if is_selected {
+                        catppuccin::SAPPHIRE
+                    } else {
+                        catppuccin::OVERLAY0
+                    }),
+                ),
+            ]));
+        }
+    }
+
+    lines.push(Line::from(""));
+    lines.push(Line::from(vec![
+        Span::styled("[j/k]", Style::default().fg(catppuccin::OVERLAY1)),
+        Span::styled(" move ", Theme::text_muted()),
+        Span::styled("[Enter]", Style::default().fg(catppuccin::OVERLAY1)),
+        Span::styled(" select ", Theme::text_muted()),
+        Span::styled("[Esc]", Style::default().fg(catppuccin::OVERLAY1)),
+        Span::styled(" cancel", Theme::text_muted()),
+    ]));
+
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 
 /// draw help overlay popup
@@ -186,21 +292,21 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
         Line::from(vec![
             Span::styled("  /country  ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled(
-                "Set focal country by code or name",
+                "Open picker or set by code or name",
                 Style::default().fg(catppuccin::TEXT),
             ),
         ]),
         Line::from(vec![
             Span::styled("  /currency ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled(
-                "Set pair, pin code, or sync on/off",
+                "Open picker, set pair, pin, or sync",
                 Style::default().fg(catppuccin::TEXT),
             ),
         ]),
         Line::from(vec![
             Span::styled("  /map      ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled(
-                "Set map mode route|cities|countries|both",
+                "Open picker or set route|cities|countries|both",
                 Style::default().fg(catppuccin::TEXT),
             ),
         ]),

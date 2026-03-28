@@ -8,7 +8,7 @@ use chrono::Timelike;
 use crate::config::{City, Config, CurrencyConfig, MapConfig, MapMode};
 use crate::exchange::{CurrencyConverter, ExchangeService};
 use crate::map::NZ_CITIES;
-use crate::reference::{lookup_country, lookup_currency};
+use crate::reference::{lookup_country, lookup_currency, search_countries, search_currencies};
 use crate::timezone::{CityTime, TimeConverter, TimezoneService};
 use crate::weather::{CurrentWeather, WeatherService};
 
@@ -127,6 +127,9 @@ pub struct App {
 
     // command input buffer (for /help, /edit, etc.)
     pub command_buffer: String,
+
+    // interactive search picker
+    pub picker: Option<PickerState>,
 }
 
 /// input mode for the application
@@ -135,6 +138,34 @@ pub enum InputMode {
     Normal,
     EditingCurrency,
     EditingTime,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PickerState {
+    pub query: String,
+    pub selected: usize,
+    kind: PickerKind,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PickerKind {
+    Country,
+    CurrencyFrom,
+    CurrencyTo { from_code: String },
+    MapMode,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PickerOption {
+    pub label: String,
+    pub detail: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PickerChoice {
+    Country { code: String, name: String },
+    Currency { code: String, name: String },
+    MapMode { mode: MapMode, label: String },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -149,6 +180,9 @@ enum CommandAction {
     SetCurrencySync { enabled: bool },
     PinCurrency { code: String },
     SetMapMode { mode: MapMode },
+    OpenCountryPicker,
+    OpenCurrencyPicker,
+    OpenMapPicker,
 }
 
 fn parse_command(input: &str) -> std::result::Result<CommandAction, String> {
@@ -161,6 +195,9 @@ fn parse_command(input: &str) -> std::result::Result<CommandAction, String> {
         "/quit" | "/q" => return Ok(CommandAction::Quit),
         "/reload" | "/r" => return Ok(CommandAction::Reload),
         "/refresh" => return Ok(CommandAction::Refresh),
+        "/country" | "/focus" => return Ok(CommandAction::OpenCountryPicker),
+        "/currency" => return Ok(CommandAction::OpenCurrencyPicker),
+        "/map" => return Ok(CommandAction::OpenMapPicker),
         _ => {}
     }
 
@@ -320,7 +357,10 @@ fn apply_command_action_to_config(
         | CommandAction::EditConfig
         | CommandAction::Quit
         | CommandAction::Reload
-        | CommandAction::Refresh => Ok(None),
+        | CommandAction::Refresh
+        | CommandAction::OpenCountryPicker
+        | CommandAction::OpenCurrencyPicker
+        | CommandAction::OpenMapPicker => Ok(None),
     }
 }
 
@@ -366,6 +406,7 @@ impl App {
             show_help: false,
             edit_config_requested: false,
             command_buffer: String::new(),
+            picker: None,
         }
     }
 
@@ -507,6 +548,11 @@ impl App {
     /// handle keyboard input
     pub fn handle_key(&mut self, key: crossterm::event::KeyCode) {
         use crossterm::event::KeyCode;
+
+        if self.picker.is_some() {
+            self.handle_picker_input(key);
+            return;
+        }
 
         // if help is showing, Esc closes it
         if self.show_help {
@@ -676,6 +722,91 @@ impl App {
         }
     }
 
+    fn handle_picker_input(&mut self, key: crossterm::event::KeyCode) {
+        use crossterm::event::KeyCode;
+
+        match key {
+            KeyCode::Esc => {
+                self.picker = None;
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                if let Some(picker) = &mut self.picker {
+                    picker.selected = picker.selected.saturating_sub(1);
+                }
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                let option_count = self.picker_options().len();
+                if option_count == 0 {
+                    return;
+                }
+                if let Some(picker) = &mut self.picker {
+                    picker.selected = (picker.selected + 1).min(option_count.saturating_sub(1));
+                }
+            }
+            KeyCode::Enter => {
+                if let Err(err) = self.submit_picker_selection() {
+                    self.set_status(err.to_string());
+                }
+            }
+            KeyCode::Backspace => {
+                if let Some(picker) = &mut self.picker {
+                    picker.query.pop();
+                    picker.selected = 0;
+                }
+            }
+            KeyCode::Char(c) if !c.is_control() => {
+                if let Some(picker) = &mut self.picker {
+                    picker.query.push(c);
+                    picker.selected = 0;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn submit_picker_selection(&mut self) -> Result<()> {
+        let Some(choice) = self.current_picker_choice() else {
+            return Ok(());
+        };
+
+        let Some(picker) = self.picker.clone() else {
+            return Ok(());
+        };
+
+        match (picker.kind, choice) {
+            (PickerKind::Country, PickerChoice::Country { code, name }) => {
+                self.picker = None;
+                self.apply_config_command(CommandAction::SetFocalCountry { code, name })
+            }
+            (PickerKind::CurrencyFrom, PickerChoice::Currency { code, .. }) => {
+                self.open_picker(PickerKind::CurrencyTo { from_code: code });
+                Ok(())
+            }
+            (PickerKind::CurrencyTo { from_code }, PickerChoice::Currency { code, .. }) => {
+                self.picker = None;
+                self.apply_config_command(CommandAction::SetCurrencyPair {
+                    from_code,
+                    to_code: code,
+                })
+            }
+            (PickerKind::MapMode, PickerChoice::MapMode { mode, .. }) => {
+                self.picker = None;
+                self.apply_config_command(CommandAction::SetMapMode { mode })
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn open_picker(&mut self, kind: PickerKind) {
+        self.show_help = false;
+        self.command_buffer.clear();
+        self.picker = Some(PickerState {
+            query: String::new(),
+            selected: 0,
+            kind,
+        });
+    }
+
     fn execute_command(&mut self) {
         let raw_command = self.command_buffer.trim();
 
@@ -705,6 +836,15 @@ impl App {
             CommandAction::Refresh => {
                 self.weather_refresh_pending = true;
                 self.set_status("Refreshing...".to_string());
+            }
+            CommandAction::OpenCountryPicker => {
+                self.open_picker(PickerKind::Country);
+            }
+            CommandAction::OpenCurrencyPicker => {
+                self.open_picker(PickerKind::CurrencyFrom);
+            }
+            CommandAction::OpenMapPicker => {
+                self.open_picker(PickerKind::MapMode);
             }
             other => {
                 if let Err(err) = self.apply_config_command(other) {
@@ -878,6 +1018,104 @@ impl App {
         }
     }
 
+    pub fn picker_title(&self) -> Option<String> {
+        let picker = self.picker.as_ref()?;
+        let title = match &picker.kind {
+            PickerKind::Country => "Pick focal country".to_string(),
+            PickerKind::CurrencyFrom => "Pick source currency".to_string(),
+            PickerKind::CurrencyTo { from_code } => {
+                format!("Pick target currency for {}", from_code)
+            }
+            PickerKind::MapMode => "Pick map mode".to_string(),
+        };
+        Some(title)
+    }
+
+    pub fn picker_prompt(&self) -> Option<&'static str> {
+        let picker = self.picker.as_ref()?;
+        let prompt = match picker.kind {
+            PickerKind::Country => "Search by country name, alias, or ISO-3 code",
+            PickerKind::CurrencyFrom => "Search by currency name, alias, or ISO-4217 code",
+            PickerKind::CurrencyTo { .. } => "Choose the paired target currency",
+            PickerKind::MapMode => "Filter map modes or press Enter to select",
+        };
+        Some(prompt)
+    }
+
+    pub fn picker_options(&self) -> Vec<PickerOption> {
+        self.picker_choices()
+            .into_iter()
+            .map(|choice| match choice {
+                PickerChoice::Country { code, name } => PickerOption {
+                    label: name,
+                    detail: code,
+                },
+                PickerChoice::Currency { code, name } => PickerOption {
+                    label: name,
+                    detail: code,
+                },
+                PickerChoice::MapMode { mode: _, label } => PickerOption {
+                    detail: label.to_lowercase(),
+                    label,
+                },
+            })
+            .collect()
+    }
+
+    fn current_picker_choice(&self) -> Option<PickerChoice> {
+        let picker = self.picker.as_ref()?;
+        let choices = self.picker_choices();
+        let index = picker.selected.min(choices.len().saturating_sub(1));
+        choices.get(index).cloned()
+    }
+
+    fn picker_choices(&self) -> Vec<PickerChoice> {
+        let Some(picker) = self.picker.as_ref() else {
+            return Vec::new();
+        };
+
+        match &picker.kind {
+            PickerKind::Country => search_countries(&picker.query)
+                .into_iter()
+                .map(|country| PickerChoice::Country {
+                    code: country.code.to_string(),
+                    name: country.name.to_string(),
+                })
+                .collect(),
+            PickerKind::CurrencyFrom => search_currencies(&picker.query)
+                .into_iter()
+                .map(|currency| PickerChoice::Currency {
+                    code: currency.code.to_string(),
+                    name: currency.name.to_string(),
+                })
+                .collect(),
+            PickerKind::CurrencyTo { from_code } => search_currencies(&picker.query)
+                .into_iter()
+                .filter(|currency| !currency.code.eq_ignore_ascii_case(from_code))
+                .map(|currency| PickerChoice::Currency {
+                    code: currency.code.to_string(),
+                    name: currency.name.to_string(),
+                })
+                .collect(),
+            PickerKind::MapMode => {
+                let query = picker.query.trim().to_lowercase();
+                [
+                    (MapMode::Route, "Route"),
+                    (MapMode::Cities, "Cities"),
+                    (MapMode::Countries, "Countries"),
+                    (MapMode::Both, "Both"),
+                ]
+                .into_iter()
+                .filter(|(_, label)| query.is_empty() || label.to_lowercase().contains(&query))
+                .map(|(mode, label)| PickerChoice::MapMode {
+                    mode,
+                    label: label.to_string(),
+                })
+                .collect()
+            }
+        }
+    }
+
     fn apply_config_command(&mut self, action: CommandAction) -> Result<()> {
         let status = apply_command_action_to_config(&mut self.config, &action)
             .map_err(|message| anyhow!(message))?;
@@ -945,6 +1183,13 @@ mod tests {
     }
 
     #[test]
+    fn parses_bare_country_command_to_picker() {
+        let action = parse_command("/country").expect("command should parse");
+
+        assert_eq!(action, CommandAction::OpenCountryPicker);
+    }
+
+    #[test]
     fn applies_currency_pin_command_to_config() {
         let mut config = Config::default();
         let action = parse_command("/currency pin cad").expect("command should parse");
@@ -983,5 +1228,76 @@ mod tests {
         app.map_context = Focus::Weather;
 
         assert_eq!(app.active_map_focus(), Focus::Map);
+    }
+
+    #[test]
+    fn picker_can_apply_country_selection() {
+        let mut app = App::new(Config::default());
+        app.open_picker(PickerKind::Country);
+        if let Some(picker) = &mut app.picker {
+            picker.query = "uk".to_string();
+        }
+
+        let choice = app
+            .current_picker_choice()
+            .expect("picker should return a choice");
+        let mut config = Config::default();
+        let action = match choice {
+            PickerChoice::Country { code, name } => CommandAction::SetFocalCountry { code, name },
+            other => panic!("unexpected picker choice: {other:?}"),
+        };
+        apply_command_action_to_config(&mut config, &action)
+            .expect("config mutation should succeed");
+
+        assert_eq!(
+            config
+                .map
+                .as_ref()
+                .and_then(|map| map.focal_country_code.as_deref()),
+            Some("GBR")
+        );
+    }
+
+    #[test]
+    fn picker_can_apply_currency_pair_selection() {
+        let mut app = App::new(Config::default());
+        app.open_picker(PickerKind::CurrencyFrom);
+        if let Some(picker) = &mut app.picker {
+            picker.query = "nzd".to_string();
+        }
+
+        let from_code = match app
+            .current_picker_choice()
+            .expect("picker should return a choice")
+        {
+            PickerChoice::Currency { code, .. } => code,
+            other => panic!("unexpected picker choice: {other:?}"),
+        };
+
+        app.open_picker(PickerKind::CurrencyTo { from_code });
+        if let Some(picker) = &mut app.picker {
+            picker.query = "yen".to_string();
+        }
+
+        let mut config = Config::default();
+        let action = match app
+            .current_picker_choice()
+            .expect("picker should return a choice")
+        {
+            PickerChoice::Currency { code, .. } => CommandAction::SetCurrencyPair {
+                from_code: "NZD".to_string(),
+                to_code: code,
+            },
+            other => panic!("unexpected picker choice: {other:?}"),
+        };
+        apply_command_action_to_config(&mut config, &action)
+            .expect("config mutation should succeed");
+
+        let currency = config
+            .currency
+            .as_ref()
+            .expect("currency config should exist");
+        assert_eq!(currency.default_from.as_deref(), Some("NZD"));
+        assert_eq!(currency.default_to.as_deref(), Some("JPY"));
     }
 }

@@ -623,6 +623,88 @@ pub fn focal_country_code_for_currency(code: &str) -> Option<&'static str> {
     currency_by_code(code).map(|currency| currency.focal_country_code)
 }
 
+pub fn search_countries(query: &str) -> Vec<&'static CountryReference> {
+    let query = query.trim().to_lowercase();
+    let mut matches: Vec<_> = COUNTRY_REFERENCES
+        .iter()
+        .filter(|country| matches_country(country, &query))
+        .collect();
+    matches.sort_by_key(|country| country_match_rank(country, &query));
+    matches
+}
+
+pub fn search_currencies(query: &str) -> Vec<&'static CurrencyReference> {
+    let query = query.trim().to_lowercase();
+    let mut matches: Vec<_> = CURRENCY_REFERENCES
+        .iter()
+        .filter(|currency| matches_currency(currency, &query))
+        .collect();
+    matches.sort_by_key(|currency| currency_match_rank(currency, &query));
+    matches
+}
+
+fn matches_country(country: &CountryReference, query: &str) -> bool {
+    if query.is_empty() {
+        return true;
+    }
+
+    country.code.to_lowercase().contains(query)
+        || country.name.to_lowercase().contains(query)
+        || country
+            .aliases
+            .iter()
+            .any(|alias| alias.to_lowercase().contains(query))
+}
+
+fn matches_currency(currency: &CurrencyReference, query: &str) -> bool {
+    if query.is_empty() {
+        return true;
+    }
+
+    currency.code.to_lowercase().contains(query)
+        || currency.name.to_lowercase().contains(query)
+        || currency
+            .aliases
+            .iter()
+            .any(|alias| alias.to_lowercase().contains(query))
+}
+
+fn country_match_rank(country: &CountryReference, query: &str) -> u8 {
+    if query.is_empty() {
+        return 3;
+    }
+    if country.code.eq_ignore_ascii_case(query) {
+        0
+    } else if country.name.eq_ignore_ascii_case(query)
+        || country
+            .aliases
+            .iter()
+            .any(|alias| alias.eq_ignore_ascii_case(query))
+    {
+        1
+    } else {
+        2
+    }
+}
+
+fn currency_match_rank(currency: &CurrencyReference, query: &str) -> u8 {
+    if query.is_empty() {
+        return 3;
+    }
+    if currency.code.eq_ignore_ascii_case(query) {
+        0
+    } else if currency.name.eq_ignore_ascii_case(query)
+        || currency
+            .aliases
+            .iter()
+            .any(|alias| alias.eq_ignore_ascii_case(query))
+    {
+        1
+    } else {
+        2
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -638,5 +720,20 @@ mod tests {
         let currency = lookup_currency("yen").expect("currency alias should resolve");
         assert_eq!(currency.code, "JPY");
         assert_eq!(currency.name, "Japanese yen");
+    }
+
+    #[test]
+    fn searches_country_aliases() {
+        let countries = search_countries("brit");
+        assert_eq!(countries.first().map(|country| country.code), Some("GBR"));
+    }
+
+    #[test]
+    fn searches_currency_aliases() {
+        let currencies = search_currencies("yen");
+        assert_eq!(
+            currencies.first().map(|currency| currency.code),
+            Some("JPY")
+        );
     }
 }
