@@ -3,14 +3,15 @@
 //! follows margo-style config: simple toml with manual parsing
 
 use anyhow::{Context, Result, bail};
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
 use std::path::PathBuf;
 
 use crate::reference::{
-    is_valid_country_code, is_valid_currency_code, lookup_country, normalise_country_code,
-    normalise_currency_code,
+    canonical_currency_code_for_country, country_by_code, is_valid_country_code,
+    is_valid_currency_code, lookup_country, normalise_country_code, normalise_currency_code,
 };
 
 /// city configuration with timezone and currency info
@@ -214,9 +215,25 @@ fn default_true() -> bool {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TimeConfig {
+    #[serde(default)]
+    pub city_codes: Vec<String>,
+}
+
+impl Default for TimeConfig {
+    fn default() -> Self {
+        Self {
+            city_codes: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CurrencyConfig {
     #[serde(default = "default_true")]
     pub sync_with_cities: bool,
+    #[serde(default)]
+    pub country_codes: Vec<String>,
     #[serde(default)]
     pub pinned_codes: Vec<String>,
     #[serde(default)]
@@ -229,6 +246,7 @@ impl Default for CurrencyConfig {
     fn default() -> Self {
         Self {
             sync_with_cities: true,
+            country_codes: Vec::new(),
             pinned_codes: Vec::new(),
             default_from: None,
             default_to: None,
@@ -274,6 +292,9 @@ pub struct Config {
     pub tracked_cities: Vec<City>,
     /// display preferences
     pub display: DisplayConfig,
+    /// optional time list overrides
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub time: Option<TimeConfig>,
     /// optional currency behaviour overrides
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<CurrencyConfig>,
@@ -306,6 +327,7 @@ impl Default for Config {
                 City::beijing(),
             ],
             display: DisplayConfig::default(),
+            time: None,
             currency: None,
             map: None,
         }
@@ -315,6 +337,10 @@ impl Default for Config {
 impl Config {
     /// path to config directory (~/.config/nzi-cli) - margo style
     pub fn config_dir() -> PathBuf {
+        if let Some(path) = std::env::var_os("NZI_CONFIG_DIR") {
+            return PathBuf::from(path);
+        }
+
         dirs::home_dir()
             .unwrap_or_else(|| PathBuf::from("."))
             .join(".config")
@@ -324,6 +350,14 @@ impl Config {
     /// get the config file path
     pub fn config_path() -> PathBuf {
         Self::config_dir().join("config.toml")
+    }
+
+    pub fn snapshot_dir() -> PathBuf {
+        Self::config_dir().join("snapshots")
+    }
+
+    pub fn latest_snapshot_path() -> PathBuf {
+        Self::snapshot_dir().join("latest.toml")
     }
 
     /// load configuration from file, or create default if it doesn't exist
@@ -377,6 +411,49 @@ impl Config {
         Ok(())
     }
 
+    pub fn save_snapshot(&self) -> Result<PathBuf> {
+        let snapshot_dir = Self::snapshot_dir();
+        fs::create_dir_all(&snapshot_dir).context("failed to create snapshot directory")?;
+
+        let mut config = self.clone();
+        config.normalize();
+        config.validate()?;
+        let content = toml::to_string_pretty(&config).context("failed to serialise snapshot")?;
+
+        let timestamp = Utc::now().format("%Y%m%dT%H%M%SZ");
+        let snapshot_path = snapshot_dir.join(format!("{}.toml", timestamp));
+        fs::write(&snapshot_path, &content).context("failed to write snapshot file")?;
+        fs::write(Self::latest_snapshot_path(), content)
+            .context("failed to write latest snapshot")?;
+
+        Ok(snapshot_path)
+    }
+
+    pub fn load_latest_snapshot() -> Result<Self> {
+        let latest_path = Self::latest_snapshot_path();
+        let snapshot_path = if latest_path.exists() {
+            latest_path
+        } else {
+            let mut entries: Vec<PathBuf> = fs::read_dir(Self::snapshot_dir())
+                .context("failed to read snapshot directory")?
+                .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+                .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("toml"))
+                .collect();
+            entries.sort();
+            entries
+                .pop()
+                .context("no saved preference snapshots found")?
+        };
+
+        let content = fs::read_to_string(&snapshot_path).context("failed to read snapshot file")?;
+        let mut config: Config =
+            toml::from_str(&content).context("failed to parse snapshot file")?;
+        config.normalize_legacy_cities();
+        config.normalize();
+        config.validate()?;
+        Ok(config)
+    }
+
     /// get all cities including current and home
     pub fn all_cities(&self) -> Vec<&City> {
         let mut cities = vec![&self.current_city, &self.home_city];
@@ -387,6 +464,59 @@ impl Config {
     /// get all city codes for time conversion cycling
     pub fn all_city_codes(&self) -> Vec<String> {
         self.all_cities().iter().map(|c| c.code.clone()).collect()
+    }
+
+    pub fn effective_time_settings(&self) -> TimeConfig {
+        self.time.clone().unwrap_or_default()
+    }
+
+    pub fn effective_time_city_codes(&self) -> Vec<String> {
+        let settings = self.effective_time_settings();
+        let mut codes = Vec::new();
+
+        for code in settings.city_codes {
+            Self::push_unique_code(&mut codes, &code);
+        }
+
+        if codes.is_empty() {
+            Self::push_unique_code(&mut codes, &self.current_city.code);
+            Self::push_unique_code(&mut codes, &self.home_city.code);
+            for city in &self.tracked_cities {
+                Self::push_unique_code(&mut codes, &city.code);
+            }
+        } else if !codes
+            .iter()
+            .any(|code| code.eq_ignore_ascii_case(&self.current_city.code))
+        {
+            codes.insert(0, self.current_city.code.clone());
+        }
+
+        codes
+    }
+
+    pub fn effective_time_cities(&self) -> Vec<&City> {
+        self.effective_time_city_codes()
+            .into_iter()
+            .filter_map(|code| {
+                self.all_cities()
+                    .into_iter()
+                    .find(|city| city.code.eq_ignore_ascii_case(&code))
+            })
+            .collect()
+    }
+
+    pub fn effective_default_time_pair(&self) -> (String, String) {
+        let codes = self.effective_time_city_codes();
+        let from = codes
+            .first()
+            .cloned()
+            .unwrap_or_else(|| self.current_city.code.clone());
+        let to = codes
+            .iter()
+            .find(|code| !code.eq_ignore_ascii_case(&from))
+            .cloned()
+            .unwrap_or_else(|| self.home_city.code.clone());
+        (from, to)
     }
 
     pub fn effective_currency_settings(&self) -> CurrencyConfig {
@@ -504,7 +634,15 @@ impl Config {
             updated |= Self::normalize_city(city);
         }
 
+        if let Some(time) = &mut self.time {
+            updated |= Self::normalize_code_list(&mut time.city_codes, |value| {
+                value.trim().to_uppercase()
+            });
+        }
+
         if let Some(currency) = &mut self.currency {
+            updated |=
+                Self::normalize_code_list(&mut currency.country_codes, normalise_country_code);
             updated |=
                 Self::normalize_optional_code(&mut currency.default_from, normalise_currency_code);
             updated |=
@@ -600,7 +738,13 @@ impl Config {
             Self::push_unique_currency(&mut targets, &self.home_city.currency, &from_currency);
         }
 
-        if settings.sync_with_cities {
+        for country_code in &settings.country_codes {
+            if let Some(currency_code) = canonical_currency_code_for_country(country_code) {
+                Self::push_unique_currency(&mut targets, currency_code, &from_currency);
+            }
+        }
+
+        if settings.sync_with_cities || settings.country_codes.is_empty() {
             for city in self.all_cities() {
                 Self::push_unique_currency(&mut targets, &city.currency, &from_currency);
             }
@@ -616,6 +760,13 @@ impl Config {
     fn push_unique_currency(targets: &mut Vec<String>, code: &str, from_currency: &str) {
         let code = normalise_currency_code(code);
         if code != from_currency && !targets.iter().any(|value| value == &code) {
+            targets.push(code);
+        }
+    }
+
+    fn push_unique_code(targets: &mut Vec<String>, code: &str) {
+        let code = code.trim().to_uppercase();
+        if !code.is_empty() && !targets.iter().any(|value| value == &code) {
             targets.push(code);
         }
     }
@@ -641,7 +792,24 @@ impl Config {
             }
         }
 
+        if let Some(time) = &self.time {
+            for city_code in &time.city_codes {
+                if !self
+                    .all_city_codes()
+                    .iter()
+                    .any(|code| code.eq_ignore_ascii_case(city_code))
+                {
+                    bail!("unknown time.city_codes entry: {}", city_code);
+                }
+            }
+        }
+
         if let Some(currency) = &self.currency {
+            for country_code in &currency.country_codes {
+                if !is_valid_country_code(country_code) || country_by_code(country_code).is_none() {
+                    bail!("unknown currency.country_codes entry: {}", country_code);
+                }
+            }
             if let Some(default_from) = &currency.default_from
                 && !is_valid_currency_code(default_from)
             {
@@ -670,13 +838,13 @@ impl Config {
             }
 
             if let Some(country_code) = &map.focal_country_code
-                && !is_valid_country_code(country_code)
+                && (!is_valid_country_code(country_code) || country_by_code(country_code).is_none())
             {
                 bail!("invalid map.focal_country_code: {}", country_code);
             }
 
             for country_code in &map.focus_country_codes {
-                if !is_valid_country_code(country_code) {
+                if !is_valid_country_code(country_code) || country_by_code(country_code).is_none() {
                     bail!("invalid map.focus_country_codes entry: {}", country_code);
                 }
             }
@@ -689,6 +857,39 @@ impl Config {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::{Mutex, OnceLock};
+
+    fn test_lock() -> &'static Mutex<()> {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        LOCK.get_or_init(|| Mutex::new(()))
+    }
+
+    fn with_temp_config_dir<T>(test: impl FnOnce() -> T) -> T {
+        let _guard = test_lock().lock().expect("test lock should be available");
+        let temp_dir = std::env::temp_dir().join(format!(
+            "nzi-cli-test-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("system time should be valid")
+                .as_nanos()
+        ));
+        fs::create_dir_all(&temp_dir).expect("temp dir should be created");
+
+        // safe in tests because access is serialised by the mutex above.
+        unsafe {
+            std::env::set_var("NZI_CONFIG_DIR", &temp_dir);
+        }
+
+        let result = test();
+
+        // safe in tests because access is serialised by the mutex above.
+        unsafe {
+            std::env::remove_var("NZI_CONFIG_DIR");
+        }
+        let _ = fs::remove_dir_all(&temp_dir);
+
+        result
+    }
 
     fn legacy_new_york_city() -> City {
         let mut city = City::boston();
@@ -745,6 +946,7 @@ mod tests {
         let mut config = Config::default();
         config.currency = Some(CurrencyConfig {
             sync_with_cities: true,
+            country_codes: Vec::new(),
             pinned_codes: vec!["cad".to_string()],
             default_from: Some("nzd".to_string()),
             default_to: Some("sgd".to_string()),
@@ -759,6 +961,38 @@ mod tests {
         );
         assert!(pairs.contains(&(String::from("NZD"), String::from("USD"))));
         assert!(pairs.contains(&(String::from("NZD"), String::from("CAD"))));
+    }
+
+    #[test]
+    fn derives_time_city_codes_from_explicit_list() {
+        let mut config = Config::default();
+        config.time = Some(TimeConfig {
+            city_codes: vec!["bos".to_string(), "tyo".to_string()],
+        });
+        config.normalize();
+
+        let codes = config.effective_time_city_codes();
+
+        assert_eq!(codes.first().map(String::as_str), Some("WLG"));
+        assert!(codes.iter().any(|code| code == "BOS"));
+        assert!(codes.iter().any(|code| code == "TYO"));
+    }
+
+    #[test]
+    fn derives_currency_pairs_from_country_codes() {
+        let mut config = Config::default();
+        config.currency = Some(CurrencyConfig {
+            sync_with_cities: false,
+            country_codes: vec!["JPN".to_string(), "GBR".to_string()],
+            pinned_codes: Vec::new(),
+            default_from: Some("NZD".to_string()),
+            default_to: None,
+        });
+
+        let pairs = config.effective_currency_pairs();
+
+        assert!(pairs.contains(&(String::from("NZD"), String::from("JPY"))));
+        assert!(pairs.contains(&(String::from("NZD"), String::from("GBP"))));
     }
 
     #[test]
@@ -781,5 +1015,26 @@ mod tests {
         let map = config.effective_map_settings();
 
         assert_eq!(map.focal_country_code.as_deref(), Some("NZL"));
+    }
+
+    #[test]
+    fn saves_and_restores_latest_snapshot() {
+        with_temp_config_dir(|| {
+            let mut config = Config::default();
+            config.map = Some(MapConfig {
+                mode: MapMode::Countries,
+                focus_city_code: None,
+                focus_country_codes: vec!["GBR".to_string()],
+                focal_country_code: Some("JPN".to_string()),
+            });
+
+            config.save_snapshot().expect("snapshot should save");
+
+            let restored = Config::load_latest_snapshot().expect("snapshot should load");
+            let restored_map = restored.map.expect("map config should exist");
+
+            assert_eq!(restored_map.mode, MapMode::Countries);
+            assert_eq!(restored_map.focal_country_code.as_deref(), Some("JPN"));
+        });
     }
 }

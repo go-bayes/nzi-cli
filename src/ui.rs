@@ -13,10 +13,12 @@ use ratatui::{
 
 use unicode_width::UnicodeWidthStr;
 
-use crate::app::{App, Focus, InputMode};
+use crate::app::{App, ConfigTab, Focus, InputMode};
 use crate::config::{City, MapMode};
 use crate::map::{NZ_CITIES, NzMapCanvas, Sparkles, WorldMapCanvas, WorldMarker};
-use crate::reference::{country_by_code, focal_country_code_for_currency};
+use crate::reference::{
+    canonical_currency_code_for_country, country_by_code, focal_country_code_for_currency,
+};
 use crate::theme::{Theme, catppuccin};
 use crate::timezone::CityTime;
 use crate::weather::{city_coords_by_code, city_coords_by_name};
@@ -43,10 +45,324 @@ pub fn draw(frame: &mut Frame, app: &App) {
     draw_content(frame, main_chunks[1], app);
     draw_footer(frame, main_chunks[2], app);
 
+    if app.config_editor_state().is_some() {
+        draw_config_editor_overlay(frame, area, app);
+    }
+
     if app.picker.is_some() {
         draw_picker_overlay(frame, area, app);
-    } else if app.show_help {
+    } else if app.show_help && app.config_editor_state().is_none() {
         draw_help_overlay(frame, area);
+    }
+}
+
+fn draw_config_editor_overlay(frame: &mut Frame, area: Rect, app: &App) {
+    let Some(editor) = app.config_editor_state() else {
+        return;
+    };
+    let Some(config) = app.config_editor_config() else {
+        return;
+    };
+
+    let popup_width = 80.min(area.width.saturating_sub(4));
+    let popup_height = 24.min(area.height.saturating_sub(4));
+    let x = (area.width.saturating_sub(popup_width)) / 2;
+    let y = (area.height.saturating_sub(popup_height)) / 2;
+    let popup_area = Rect::new(x, y, popup_width, popup_height);
+
+    frame.render_widget(
+        Block::default().style(Style::default().bg(catppuccin::BASE)),
+        popup_area,
+    );
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_type(BorderType::Double)
+        .border_style(Style::default().fg(catppuccin::GREEN))
+        .title(Span::styled(
+            " Config Editor [Esc] ",
+            Style::default()
+                .fg(catppuccin::GREEN)
+                .add_modifier(Modifier::BOLD),
+        ));
+    let inner = block.inner(popup_area);
+    frame.render_widget(block, popup_area);
+
+    let tab_line = Line::from(
+        [
+            ConfigTab::Time,
+            ConfigTab::Currency,
+            ConfigTab::Map,
+            ConfigTab::Actions,
+        ]
+        .into_iter()
+        .flat_map(|tab| {
+            let is_active = tab == editor.tab;
+            [
+                Span::styled(
+                    format!(" {} ", tab.label()),
+                    Style::default()
+                        .fg(if is_active {
+                            catppuccin::BASE
+                        } else {
+                            catppuccin::OVERLAY1
+                        })
+                        .bg(if is_active {
+                            catppuccin::GREEN
+                        } else {
+                            catppuccin::SURFACE1
+                        })
+                        .add_modifier(if is_active {
+                            Modifier::BOLD
+                        } else {
+                            Modifier::empty()
+                        }),
+                ),
+                Span::raw(" "),
+            ]
+        })
+        .collect::<Vec<_>>(),
+    );
+
+    let body_area = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2),
+            Constraint::Min(8),
+            Constraint::Length(2),
+        ])
+        .split(inner);
+
+    frame.render_widget(Paragraph::new(tab_line), body_area[0]);
+
+    let lines = match editor.tab {
+        ConfigTab::Time => config_editor_time_lines(app, config, editor.selected),
+        ConfigTab::Currency => config_editor_currency_lines(app, config, editor.selected),
+        ConfigTab::Map => config_editor_map_lines(config, editor.selected),
+        ConfigTab::Actions => config_editor_action_lines(editor.selected),
+    };
+    frame.render_widget(
+        Paragraph::new(lines).wrap(Wrap { trim: false }),
+        body_area[1],
+    );
+
+    let footer = Line::from(vec![
+        Span::styled("[Tab]", Style::default().fg(catppuccin::OVERLAY1)),
+        Span::styled(" tabs ", Theme::text_muted()),
+        Span::styled("[j/k]", Style::default().fg(catppuccin::OVERLAY1)),
+        Span::styled(" move ", Theme::text_muted()),
+        Span::styled("[Enter]", Style::default().fg(catppuccin::OVERLAY1)),
+        Span::styled(" select ", Theme::text_muted()),
+        Span::styled("[a]", Style::default().fg(catppuccin::OVERLAY1)),
+        Span::styled(" add ", Theme::text_muted()),
+        Span::styled("[x]", Style::default().fg(catppuccin::OVERLAY1)),
+        Span::styled(" remove ", Theme::text_muted()),
+        Span::styled("[Esc]", Style::default().fg(catppuccin::OVERLAY1)),
+        Span::styled(" close", Theme::text_muted()),
+    ]);
+    frame.render_widget(Paragraph::new(footer), body_area[2]);
+}
+
+fn config_editor_time_lines(
+    app: &App,
+    config: &crate::config::Config,
+    selected: usize,
+) -> Vec<Line<'static>> {
+    let mut lines = vec![
+        Line::from(vec![Span::styled(
+            "Time cities",
+            Style::default()
+                .fg(catppuccin::PEACH)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from("The first city anchors the time converter. Remove with x."),
+        Line::from(""),
+    ];
+
+    let codes = config.effective_time_city_codes();
+    for (index, code) in codes.iter().enumerate() {
+        let city = config
+            .all_cities()
+            .into_iter()
+            .find(|city| city.code.eq_ignore_ascii_case(code));
+        let label = city
+            .map(|city| format!("{} ({})", city.name, city.code))
+            .unwrap_or_else(|| code.clone());
+        let detail = city
+            .map(|city| city.country.clone())
+            .unwrap_or_else(|| "Unknown".to_string());
+        lines.push(config_editor_row(selected == index, &label, &detail));
+    }
+
+    lines.push(config_editor_row(
+        selected == codes.len(),
+        "[+] Add time city",
+        "Open search",
+    ));
+
+    if app.has_config_draft() {
+        lines.push(Line::from(""));
+        lines.push(Line::from(vec![Span::styled(
+            "Draft edits stay local until you apply them.",
+            Style::default().fg(catppuccin::OVERLAY0),
+        )]));
+    }
+
+    lines
+}
+
+fn config_editor_currency_lines(
+    _app: &App,
+    config: &crate::config::Config,
+    selected: usize,
+) -> Vec<Line<'static>> {
+    let settings = config.effective_currency_settings();
+    let (from, to) = config.effective_default_currency_pair();
+    let mut lines = vec![
+        Line::from(vec![Span::styled(
+            "Currency countries",
+            Style::default()
+                .fg(catppuccin::PEACH)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from("Countries drive the comparison list. Remove entries with x."),
+        Line::from(""),
+        config_editor_row(
+            selected == 0,
+            "Sync with cities",
+            if settings.sync_with_cities {
+                "On"
+            } else {
+                "Off"
+            },
+        ),
+        config_editor_row(
+            selected == 1,
+            "Default pair",
+            &format!("{} -> {}", from, to),
+        ),
+    ];
+
+    for (index, code) in settings.country_codes.iter().enumerate() {
+        let name = country_by_code(code)
+            .map(|country| country.name)
+            .unwrap_or("Unknown country");
+        let currency = canonical_currency_code_for_country(code).unwrap_or("n/a");
+        lines.push(config_editor_row(
+            selected == index + 2,
+            name,
+            &format!("{} · {}", code, currency),
+        ));
+    }
+
+    lines.push(config_editor_row(
+        selected == settings.country_codes.len() + 2,
+        "[+] Add currency country",
+        "Open search",
+    ));
+
+    lines
+}
+
+fn config_editor_map_lines(config: &crate::config::Config, selected: usize) -> Vec<Line<'static>> {
+    let settings = config.effective_map_settings();
+    let focal_country = settings
+        .focal_country_code
+        .as_deref()
+        .and_then(country_by_code)
+        .map(|country| format!("{} ({})", country.name, country.code))
+        .unwrap_or_else(|| "None".to_string());
+
+    let mut lines = vec![
+        Line::from(vec![Span::styled(
+            "Map focus",
+            Style::default()
+                .fg(catppuccin::PEACH)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from("Mode controls the focused map panel. Remove list entries with x."),
+        Line::from(""),
+        config_editor_row(selected == 0, "Mode", map_mode_label(settings.mode)),
+        config_editor_row(selected == 1, "Focal country", &focal_country),
+    ];
+
+    for (index, code) in settings.focus_country_codes.iter().enumerate() {
+        let name = country_by_code(code)
+            .map(|country| country.name)
+            .unwrap_or("Unknown country");
+        lines.push(config_editor_row(selected == index + 2, name, code));
+    }
+
+    lines.push(config_editor_row(
+        selected == settings.focus_country_codes.len() + 2,
+        "[+] Add focus country",
+        "Open search",
+    ));
+
+    lines
+}
+
+fn config_editor_action_lines(selected: usize) -> Vec<Line<'static>> {
+    vec![
+        Line::from(vec![Span::styled(
+            "Draft actions",
+            Style::default()
+                .fg(catppuccin::PEACH)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from("Apply writes to config.toml and snapshots the current live config."),
+        Line::from(""),
+        config_editor_row(selected == 0, "Apply draft", "Save and close"),
+        config_editor_row(selected == 1, "Discard draft", "Drop unsaved changes"),
+        config_editor_row(selected == 2, "Reset draft", "Replace with defaults"),
+        config_editor_row(
+            selected == 3,
+            "Reload from disk",
+            "Refresh draft from config.toml",
+        ),
+        config_editor_row(
+            selected == 4,
+            "Restore snapshot",
+            "Load latest saved preferences",
+        ),
+    ]
+}
+
+fn config_editor_row(selected: bool, label: &str, detail: &str) -> Line<'static> {
+    Line::from(vec![
+        Span::styled(
+            if selected { "▸ " } else { "  " },
+            Style::default().fg(if selected {
+                catppuccin::GREEN
+            } else {
+                catppuccin::SURFACE2
+            }),
+        ),
+        Span::styled(
+            format!("{:<28}", label),
+            Style::default().fg(if selected {
+                catppuccin::TEXT
+            } else {
+                catppuccin::SUBTEXT1
+            }),
+        ),
+        Span::styled(
+            detail.to_string(),
+            Style::default().fg(if selected {
+                catppuccin::SAPPHIRE
+            } else {
+                catppuccin::OVERLAY0
+            }),
+        ),
+    ])
+}
+
+fn map_mode_label(mode: MapMode) -> &'static str {
+    match mode {
+        MapMode::Route => "Route",
+        MapMode::Cities => "Cities",
+        MapMode::Countries => "Countries",
+        MapMode::Both => "Both",
     }
 }
 
@@ -279,6 +595,13 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
             ),
         ]),
         Line::from(vec![
+            Span::styled("  /config   ", Style::default().fg(catppuccin::SAPPHIRE)),
+            Span::styled(
+                "Open the staged config editor",
+                Style::default().fg(catppuccin::TEXT),
+            ),
+        ]),
+        Line::from(vec![
             Span::styled("  /quit     ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled("Quit application", Style::default().fg(catppuccin::TEXT)),
         ]),
@@ -286,6 +609,34 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
             Span::styled("  /reload   ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled(
                 "Reload config from disk",
+                Style::default().fg(catppuccin::TEXT),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("  /apply    ", Style::default().fg(catppuccin::SAPPHIRE)),
+            Span::styled(
+                "Save the current config draft",
+                Style::default().fg(catppuccin::TEXT),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("  /discard  ", Style::default().fg(catppuccin::SAPPHIRE)),
+            Span::styled(
+                "Drop the current config draft",
+                Style::default().fg(catppuccin::TEXT),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("  /reset    ", Style::default().fg(catppuccin::SAPPHIRE)),
+            Span::styled(
+                "Reset draft to defaults",
+                Style::default().fg(catppuccin::TEXT),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("  /restore  ", Style::default().fg(catppuccin::SAPPHIRE)),
+            Span::styled(
+                "Load latest saved preferences into draft",
                 Style::default().fg(catppuccin::TEXT),
             ),
         ]),
@@ -926,7 +1277,7 @@ fn draw_weather_detail(frame: &mut Frame, area: Rect, app: &App) {
                     Theme::text_muted(),
                 )]));
                 lines.push(Line::from(vec![Span::styled(
-                    format!("  Error: {}", error.chars().take(30).collect::<String>()),
+                    format!("  Error: {}", error.chars().take(60).collect::<String>()),
                     Theme::text_dim(),
                 )]));
             } else {
@@ -1959,6 +2310,14 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &App) {
                 Line::from(vec![
                     Span::styled(" ℹ ", Style::default().fg(catppuccin::SAPPHIRE)),
                     Span::styled(message, Theme::text_dim()),
+                ])
+            } else if app.has_config_draft() {
+                Line::from(vec![
+                    Span::styled(" Draft: ", Style::default().fg(catppuccin::PEACH)),
+                    Span::styled(
+                        "/apply /discard /reset /restore",
+                        Style::default().fg(catppuccin::OVERLAY1),
+                    ),
                 ])
             } else {
                 // show NZ city codes

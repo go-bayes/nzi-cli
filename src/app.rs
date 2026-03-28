@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 use anyhow::{Result, anyhow};
 use chrono::Timelike;
 
-use crate::config::{City, Config, CurrencyConfig, MapConfig, MapMode};
+use crate::config::{City, Config, CurrencyConfig, MapConfig, MapMode, TimeConfig};
 use crate::exchange::{CurrencyConverter, ExchangeService};
 use crate::map::NZ_CITIES;
 use crate::reference::{lookup_country, lookup_currency, search_countries, search_currencies};
@@ -80,6 +80,8 @@ impl Focus {
 /// main application state
 pub struct App {
     pub config: Config,
+    pub config_draft: Option<Config>,
+    pub config_editor: Option<ConfigEditorState>,
     pub running: bool,
     pub focus: Focus,
     pub map_context: Focus,
@@ -147,12 +149,58 @@ pub struct PickerState {
     kind: PickerKind,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConfigTab {
+    Time,
+    Currency,
+    Map,
+    Actions,
+}
+
+impl ConfigTab {
+    fn next(self) -> Self {
+        match self {
+            Self::Time => Self::Currency,
+            Self::Currency => Self::Map,
+            Self::Map => Self::Actions,
+            Self::Actions => Self::Time,
+        }
+    }
+
+    fn prev(self) -> Self {
+        match self {
+            Self::Time => Self::Actions,
+            Self::Currency => Self::Time,
+            Self::Map => Self::Currency,
+            Self::Actions => Self::Map,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Time => "Time",
+            Self::Currency => "Currency",
+            Self::Map => "Map",
+            Self::Actions => "Actions",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigEditorState {
+    pub tab: ConfigTab,
+    pub selected: usize,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum PickerKind {
     Country,
     CurrencyFrom,
     CurrencyTo { from_code: String },
     MapMode,
+    TimeCity,
+    CurrencyCountry,
+    MapFocusCountry,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -163,17 +211,36 @@ pub struct PickerOption {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum PickerChoice {
-    Country { code: String, name: String },
-    Currency { code: String, name: String },
-    MapMode { mode: MapMode, label: String },
+    Country {
+        code: String,
+        name: String,
+    },
+    Currency {
+        code: String,
+        name: String,
+    },
+    MapMode {
+        mode: MapMode,
+        label: String,
+    },
+    City {
+        code: String,
+        name: String,
+        country: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum CommandAction {
+    EnterConfigDraft,
     ShowHelp,
     EditConfig,
     Quit,
     Reload,
+    ApplyDraft,
+    DiscardDraft,
+    ResetDraft,
+    RestoreDraft,
     Refresh,
     SetFocalCountry { code: String, name: String },
     SetCurrencyPair { from_code: String, to_code: String },
@@ -190,10 +257,15 @@ fn parse_command(input: &str) -> std::result::Result<CommandAction, String> {
     let lowered = trimmed.to_lowercase();
 
     match lowered.as_str() {
+        "/config" => return Ok(CommandAction::EnterConfigDraft),
         "/help" | "/h" => return Ok(CommandAction::ShowHelp),
         "/edit" | "/e" => return Ok(CommandAction::EditConfig),
         "/quit" | "/q" => return Ok(CommandAction::Quit),
         "/reload" | "/r" => return Ok(CommandAction::Reload),
+        "/apply" => return Ok(CommandAction::ApplyDraft),
+        "/discard" => return Ok(CommandAction::DiscardDraft),
+        "/reset" => return Ok(CommandAction::ResetDraft),
+        "/restore" => return Ok(CommandAction::RestoreDraft),
         "/refresh" => return Ok(CommandAction::Refresh),
         "/country" | "/focus" => return Ok(CommandAction::OpenCountryPicker),
         "/currency" => return Ok(CommandAction::OpenCurrencyPicker),
@@ -353,10 +425,15 @@ fn apply_command_action_to_config(
                 }
             )))
         }
-        CommandAction::ShowHelp
+        CommandAction::EnterConfigDraft
+        | CommandAction::ShowHelp
         | CommandAction::EditConfig
         | CommandAction::Quit
         | CommandAction::Reload
+        | CommandAction::ApplyDraft
+        | CommandAction::DiscardDraft
+        | CommandAction::ResetDraft
+        | CommandAction::RestoreDraft
         | CommandAction::Refresh
         | CommandAction::OpenCountryPicker
         | CommandAction::OpenCurrencyPicker
@@ -374,13 +451,16 @@ impl App {
         let currency_converter =
             CurrencyConverter::new_with_pairs(&from_currency, &to_currency, currency_pairs);
 
-        let time_converter = TimeConverter::new(&config.current_city.code, &config.home_city.code);
+        let (from_city_code, to_city_code) = config.effective_default_time_pair();
+        let time_converter = TimeConverter::new(&from_city_code, &to_city_code);
 
         // start on Wellington for weather by default
         let wellington_index = NZ_CITIES.iter().position(|c| c.code == "WLG").unwrap_or(0);
 
         Self {
             config,
+            config_draft: None,
+            config_editor: None,
             running: true,
             focus: Focus::Map,
             map_context: Focus::Weather,
@@ -446,8 +526,13 @@ impl App {
         // update world city times (tracked cities)
         self.world_city_times = self
             .config
-            .tracked_cities
-            .iter()
+            .effective_time_cities()
+            .into_iter()
+            .filter(|city| {
+                !city
+                    .code
+                    .eq_ignore_ascii_case(&self.config.current_city.code)
+            })
             .filter_map(CityTime::from_city)
             .collect();
 
@@ -504,9 +589,21 @@ impl App {
                 self.set_status(format!("Weather updated for {}", city_name));
             }
             Err(e) => {
-                self.weather_error = Some(e.to_string());
+                let error_message = format!("{:#}", e);
+                if let Some(cached) = self.weather_service.cached_weather(&city_name) {
+                    self.current_weather = Some(cached);
+                    self.weather_error = Some(error_message);
+                    self.is_online = false;
+                    self.set_status(format!(
+                        "Weather fetch failed for {}; showing cached data",
+                        city_name
+                    ));
+                    return;
+                }
+
+                self.weather_error = Some(error_message);
                 self.is_online = false;
-                self.set_status(format!("Weather error: {} (offline)", e));
+                self.set_status(format!("Weather error for {} (offline)", city_name));
             }
         }
     }
@@ -554,6 +651,11 @@ impl App {
             return;
         }
 
+        if self.config_editor.is_some() {
+            self.handle_config_editor_input(key);
+            return;
+        }
+
         // if help is showing, Esc closes it
         if self.show_help {
             if matches!(key, KeyCode::Esc) {
@@ -572,6 +674,52 @@ impl App {
             InputMode::Normal => self.handle_normal_input(key),
             InputMode::EditingCurrency => self.handle_currency_input(key),
             InputMode::EditingTime => self.handle_time_input(key),
+        }
+    }
+
+    fn handle_config_editor_input(&mut self, key: crossterm::event::KeyCode) {
+        use crossterm::event::KeyCode;
+
+        match key {
+            KeyCode::Esc => {
+                self.close_config_editor();
+            }
+            KeyCode::Tab | KeyCode::Right | KeyCode::Char('l') => {
+                self.cycle_config_tab(true);
+            }
+            KeyCode::BackTab | KeyCode::Left | KeyCode::Char('h') => {
+                self.cycle_config_tab(false);
+            }
+            KeyCode::Up | KeyCode::Char('k') => {
+                if let Some(editor) = &mut self.config_editor {
+                    editor.selected = editor.selected.saturating_sub(1);
+                }
+            }
+            KeyCode::Down | KeyCode::Char('j') => {
+                let row_count = self.config_editor_row_count();
+                if row_count == 0 {
+                    return;
+                }
+                if let Some(editor) = &mut self.config_editor {
+                    editor.selected = (editor.selected + 1).min(row_count.saturating_sub(1));
+                }
+            }
+            KeyCode::Enter | KeyCode::Char(' ') => {
+                if let Err(err) = self.activate_config_editor_row() {
+                    self.set_status(err.to_string());
+                }
+            }
+            KeyCode::Char('a') => {
+                if let Err(err) = self.add_config_editor_item() {
+                    self.set_status(err.to_string());
+                }
+            }
+            KeyCode::Backspace | KeyCode::Delete | KeyCode::Char('x') => {
+                if let Err(err) = self.remove_config_editor_item() {
+                    self.set_status(err.to_string());
+                }
+            }
+            _ => {}
         }
     }
 
@@ -663,7 +811,7 @@ impl App {
                     }
                     Focus::TimeConvert => {
                         // cycle through destination cities
-                        let city_codes = self.config.all_city_codes();
+                        let city_codes = self.config.effective_time_city_codes();
                         self.time_converter.cycle_to_city(&city_codes);
                         self.update_time_conversion();
                     }
@@ -793,6 +941,18 @@ impl App {
                 self.picker = None;
                 self.apply_config_command(CommandAction::SetMapMode { mode })
             }
+            (PickerKind::TimeCity, PickerChoice::City { code, .. }) => {
+                self.picker = None;
+                self.add_time_city_to_draft(&code)
+            }
+            (PickerKind::CurrencyCountry, PickerChoice::Country { code, .. }) => {
+                self.picker = None;
+                self.add_currency_country_to_draft(&code)
+            }
+            (PickerKind::MapFocusCountry, PickerChoice::Country { code, .. }) => {
+                self.picker = None;
+                self.add_map_focus_country_to_draft(&code)
+            }
             _ => Ok(()),
         }
     }
@@ -807,6 +967,25 @@ impl App {
         });
     }
 
+    fn open_config_editor(&mut self) {
+        self.begin_config_draft();
+        if self.config_editor.is_none() {
+            self.config_editor = Some(ConfigEditorState {
+                tab: ConfigTab::Time,
+                selected: 0,
+            });
+        }
+        self.show_help = false;
+        self.command_buffer.clear();
+    }
+
+    fn close_config_editor(&mut self) {
+        self.config_editor = None;
+        self.set_status(
+            "Config editor closed. Draft kept open; use /apply or /discard".to_string(),
+        );
+    }
+
     fn execute_command(&mut self) {
         let raw_command = self.command_buffer.trim();
 
@@ -819,6 +998,9 @@ impl App {
         };
 
         match action {
+            CommandAction::EnterConfigDraft => {
+                self.open_config_editor();
+            }
             CommandAction::ShowHelp => {
                 self.show_help = true;
             }
@@ -829,8 +1011,24 @@ impl App {
                 self.running = false;
             }
             CommandAction::Reload => {
-                if let Err(e) = self.reload_config() {
+                if let Err(e) = self.reload_config_state() {
                     self.set_status(format!("Failed to reload config: {}", e));
+                }
+            }
+            CommandAction::ApplyDraft => {
+                if let Err(e) = self.apply_config_draft() {
+                    self.set_status(format!("Failed to apply draft: {}", e));
+                }
+            }
+            CommandAction::DiscardDraft => {
+                self.discard_config_draft();
+            }
+            CommandAction::ResetDraft => {
+                self.reset_config_draft();
+            }
+            CommandAction::RestoreDraft => {
+                if let Err(e) = self.restore_config_draft() {
+                    self.set_status(format!("Failed to restore draft: {}", e));
                 }
             }
             CommandAction::Refresh => {
@@ -973,6 +1171,17 @@ impl App {
         Ok(())
     }
 
+    fn reload_config_state(&mut self) -> Result<()> {
+        if self.config_draft.is_some() {
+            self.config_draft = Some(Config::load()?);
+            self.clamp_config_editor_selection();
+            self.set_status("Draft reloaded from disk".to_string());
+            Ok(())
+        } else {
+            self.reload_config()
+        }
+    }
+
     /// get editor command from config
     pub fn get_editor(&self) -> String {
         self.config.display.get_editor()
@@ -1018,6 +1227,10 @@ impl App {
         }
     }
 
+    pub fn has_config_draft(&self) -> bool {
+        self.config_draft.is_some()
+    }
+
     pub fn picker_title(&self) -> Option<String> {
         let picker = self.picker.as_ref()?;
         let title = match &picker.kind {
@@ -1027,6 +1240,9 @@ impl App {
                 format!("Pick target currency for {}", from_code)
             }
             PickerKind::MapMode => "Pick map mode".to_string(),
+            PickerKind::TimeCity => "Add time city".to_string(),
+            PickerKind::CurrencyCountry => "Add currency country".to_string(),
+            PickerKind::MapFocusCountry => "Add map focus country".to_string(),
         };
         Some(title)
     }
@@ -1038,6 +1254,9 @@ impl App {
             PickerKind::CurrencyFrom => "Search by currency name, alias, or ISO-4217 code",
             PickerKind::CurrencyTo { .. } => "Choose the paired target currency",
             PickerKind::MapMode => "Filter map modes or press Enter to select",
+            PickerKind::TimeCity => "Search by city code, name, or country",
+            PickerKind::CurrencyCountry => "Search by country name, alias, or ISO-3 code",
+            PickerKind::MapFocusCountry => "Search by country name, alias, or ISO-3 code",
         };
         Some(prompt)
     }
@@ -1057,6 +1276,14 @@ impl App {
                 PickerChoice::MapMode { mode: _, label } => PickerOption {
                     detail: label.to_lowercase(),
                     label,
+                },
+                PickerChoice::City {
+                    code,
+                    name,
+                    country,
+                } => PickerOption {
+                    label: format!("{} ({})", name, code),
+                    detail: country,
                 },
             })
             .collect()
@@ -1113,19 +1340,475 @@ impl App {
                 })
                 .collect()
             }
+            PickerKind::TimeCity => self.search_config_cities(&picker.query),
+            PickerKind::CurrencyCountry => search_countries(&picker.query)
+                .into_iter()
+                .map(|country| PickerChoice::Country {
+                    code: country.code.to_string(),
+                    name: country.name.to_string(),
+                })
+                .collect(),
+            PickerKind::MapFocusCountry => search_countries(&picker.query)
+                .into_iter()
+                .map(|country| PickerChoice::Country {
+                    code: country.code.to_string(),
+                    name: country.name.to_string(),
+                })
+                .collect(),
         }
     }
 
-    fn apply_config_command(&mut self, action: CommandAction) -> Result<()> {
-        let status = apply_command_action_to_config(&mut self.config, &action)
-            .map_err(|message| anyhow!(message))?;
-        self.config.save()?;
-        self.sync_runtime_to_config();
+    fn search_config_cities(&self, query: &str) -> Vec<PickerChoice> {
+        let trimmed = query.trim().to_lowercase();
+        let mut cities: Vec<&City> = self.active_config().all_cities();
+        cities.sort_by(|left, right| left.name.cmp(&right.name));
 
-        if let Some(status) = status {
-            self.set_status(status);
+        cities
+            .into_iter()
+            .filter(|city| {
+                trimmed.is_empty()
+                    || city.code.to_lowercase().contains(&trimmed)
+                    || city.name.to_lowercase().contains(&trimmed)
+                    || city.country.to_lowercase().contains(&trimmed)
+            })
+            .map(|city| PickerChoice::City {
+                code: city.code.clone(),
+                name: city.name.clone(),
+                country: city.country.clone(),
+            })
+            .collect()
+    }
+
+    fn active_config(&self) -> &Config {
+        self.config_draft.as_ref().unwrap_or(&self.config)
+    }
+
+    fn active_config_mut(&mut self) -> &mut Config {
+        if let Some(draft) = self.config_draft.as_mut() {
+            draft
+        } else {
+            &mut self.config
+        }
+    }
+
+    pub fn config_editor_state(&self) -> Option<&ConfigEditorState> {
+        self.config_editor.as_ref()
+    }
+
+    pub fn config_editor_config(&self) -> Option<&Config> {
+        self.config_editor.as_ref()?;
+        Some(self.active_config())
+    }
+
+    fn cycle_config_tab(&mut self, forward: bool) {
+        if let Some(editor) = &mut self.config_editor {
+            editor.tab = if forward {
+                editor.tab.next()
+            } else {
+                editor.tab.prev()
+            };
+            editor.selected = 0;
+        }
+    }
+
+    fn config_editor_row_count(&self) -> usize {
+        let Some(editor) = self.config_editor.as_ref() else {
+            return 0;
+        };
+
+        match editor.tab {
+            ConfigTab::Time => self.active_config().effective_time_city_codes().len() + 1,
+            ConfigTab::Currency => {
+                let country_rows = self
+                    .active_config()
+                    .currency
+                    .as_ref()
+                    .map(|currency| currency.country_codes.len())
+                    .unwrap_or(0);
+                3 + country_rows
+            }
+            ConfigTab::Map => {
+                let focus_rows = self
+                    .active_config()
+                    .map
+                    .as_ref()
+                    .map(|map| map.focus_country_codes.len())
+                    .unwrap_or(0);
+                3 + focus_rows
+            }
+            ConfigTab::Actions => 5,
+        }
+    }
+
+    fn clamp_config_editor_selection(&mut self) {
+        let row_count = self.config_editor_row_count();
+        if let Some(editor) = &mut self.config_editor {
+            editor.selected = if row_count == 0 {
+                0
+            } else {
+                editor.selected.min(row_count - 1)
+            };
+        }
+    }
+
+    fn activate_config_editor_row(&mut self) -> Result<()> {
+        let Some(editor) = self.config_editor.as_ref() else {
+            return Ok(());
+        };
+
+        match editor.tab {
+            ConfigTab::Time => {
+                let codes = self.active_config().effective_time_city_codes();
+                if editor.selected >= codes.len() {
+                    self.open_picker(PickerKind::TimeCity);
+                }
+                Ok(())
+            }
+            ConfigTab::Currency => self.activate_currency_editor_row(editor.selected),
+            ConfigTab::Map => self.activate_map_editor_row(editor.selected),
+            ConfigTab::Actions => self.activate_actions_editor_row(editor.selected),
+        }
+    }
+
+    fn activate_currency_editor_row(&mut self, selected: usize) -> Result<()> {
+        let list_len = self
+            .active_config()
+            .currency
+            .as_ref()
+            .map(|currency| currency.country_codes.len())
+            .unwrap_or(0);
+        match selected {
+            0 => {
+                let enabled = !self
+                    .active_config()
+                    .effective_currency_settings()
+                    .sync_with_cities;
+                self.apply_config_command(CommandAction::SetCurrencySync { enabled })
+            }
+            1 => {
+                self.open_picker(PickerKind::CurrencyFrom);
+                Ok(())
+            }
+            index if index == 2 + list_len => {
+                self.open_picker(PickerKind::CurrencyCountry);
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn activate_map_editor_row(&mut self, selected: usize) -> Result<()> {
+        let list_len = self
+            .active_config()
+            .map
+            .as_ref()
+            .map(|map| map.focus_country_codes.len())
+            .unwrap_or(0);
+        match selected {
+            0 => {
+                self.open_picker(PickerKind::MapMode);
+                Ok(())
+            }
+            1 => {
+                self.open_picker(PickerKind::Country);
+                Ok(())
+            }
+            index if index == 2 + list_len => {
+                self.open_picker(PickerKind::MapFocusCountry);
+                Ok(())
+            }
+            _ => Ok(()),
+        }
+    }
+
+    fn activate_actions_editor_row(&mut self, selected: usize) -> Result<()> {
+        match selected {
+            0 => self.apply_config_draft(),
+            1 => {
+                self.discard_config_draft();
+                Ok(())
+            }
+            2 => {
+                self.reset_config_draft();
+                Ok(())
+            }
+            3 => self.reload_config_state(),
+            4 => self.restore_config_draft(),
+            _ => Ok(()),
+        }
+    }
+
+    fn add_config_editor_item(&mut self) -> Result<()> {
+        let Some(editor) = self.config_editor.as_ref() else {
+            return Ok(());
+        };
+
+        match editor.tab {
+            ConfigTab::Time => {
+                self.open_picker(PickerKind::TimeCity);
+                Ok(())
+            }
+            ConfigTab::Currency => {
+                self.open_picker(PickerKind::CurrencyCountry);
+                Ok(())
+            }
+            ConfigTab::Map => {
+                self.open_picker(PickerKind::MapFocusCountry);
+                Ok(())
+            }
+            ConfigTab::Actions => Ok(()),
+        }
+    }
+
+    fn remove_config_editor_item(&mut self) -> Result<()> {
+        let Some(editor) = self.config_editor.as_ref() else {
+            return Ok(());
+        };
+
+        match editor.tab {
+            ConfigTab::Time => {
+                let codes = self.active_config().effective_time_city_codes();
+                if editor.selected < codes.len() {
+                    self.remove_time_city_from_draft(&codes[editor.selected])?;
+                }
+                Ok(())
+            }
+            ConfigTab::Currency => {
+                if editor.selected < 2 {
+                    return Ok(());
+                }
+
+                let index = editor.selected - 2;
+                let code = self
+                    .active_config()
+                    .currency
+                    .as_ref()
+                    .and_then(|currency| currency.country_codes.get(index))
+                    .cloned();
+
+                if let Some(code) = code {
+                    self.remove_currency_country_from_draft(&code)?;
+                }
+                Ok(())
+            }
+            ConfigTab::Map => {
+                if editor.selected < 2 {
+                    return Ok(());
+                }
+
+                let index = editor.selected - 2;
+                let code = self
+                    .active_config()
+                    .map
+                    .as_ref()
+                    .and_then(|map| map.focus_country_codes.get(index))
+                    .cloned();
+
+                if let Some(code) = code {
+                    self.remove_map_focus_country_from_draft(&code)?;
+                }
+                Ok(())
+            }
+            ConfigTab::Actions => Ok(()),
+        }
+    }
+
+    fn add_time_city_to_draft(&mut self, code: &str) -> Result<()> {
+        let city_code = self
+            .active_config()
+            .all_cities()
+            .into_iter()
+            .find(|city| city.code.eq_ignore_ascii_case(code))
+            .map(|city| city.code.clone())
+            .ok_or_else(|| anyhow!("unknown city: {}", code))?;
+
+        let target = self.active_config_mut();
+        let time = target.time.get_or_insert_with(TimeConfig::default);
+        if time
+            .city_codes
+            .iter()
+            .any(|entry| entry.eq_ignore_ascii_case(&city_code))
+        {
+            self.set_status(format!("{} is already in the time list", city_code));
+            return Ok(());
+        }
+        time.city_codes.push(city_code.clone());
+        self.clamp_config_editor_selection();
+        self.set_status(format!(
+            "Draft updated: added {} to time list. Use /apply to save",
+            city_code
+        ));
+        Ok(())
+    }
+
+    fn remove_time_city_from_draft(&mut self, code: &str) -> Result<()> {
+        let target = self.active_config_mut();
+        let time = target.time.get_or_insert_with(TimeConfig::default);
+        let original_len = time.city_codes.len();
+        time.city_codes
+            .retain(|entry| !entry.eq_ignore_ascii_case(code));
+        if time.city_codes.len() < original_len {
+            self.clamp_config_editor_selection();
+            self.set_status(format!(
+                "Draft updated: removed {} from time list. Use /apply to save",
+                code
+            ));
+        }
+        Ok(())
+    }
+
+    fn add_currency_country_to_draft(&mut self, code: &str) -> Result<()> {
+        let target = self.active_config_mut();
+        let currency = target.currency.get_or_insert_with(CurrencyConfig::default);
+        if currency
+            .country_codes
+            .iter()
+            .any(|entry| entry.eq_ignore_ascii_case(code))
+        {
+            self.set_status(format!("{} is already in the currency list", code));
+            return Ok(());
+        }
+        currency.country_codes.push(code.to_string());
+        self.clamp_config_editor_selection();
+        self.set_status(format!(
+            "Draft updated: added {} to currency countries. Use /apply to save",
+            code
+        ));
+        Ok(())
+    }
+
+    fn remove_currency_country_from_draft(&mut self, code: &str) -> Result<()> {
+        let target = self.active_config_mut();
+        let currency = target.currency.get_or_insert_with(CurrencyConfig::default);
+        let original_len = currency.country_codes.len();
+        currency
+            .country_codes
+            .retain(|entry| !entry.eq_ignore_ascii_case(code));
+        if currency.country_codes.len() < original_len {
+            self.clamp_config_editor_selection();
+            self.set_status(format!(
+                "Draft updated: removed {} from currency countries. Use /apply to save",
+                code
+            ));
+        }
+        Ok(())
+    }
+
+    fn add_map_focus_country_to_draft(&mut self, code: &str) -> Result<()> {
+        let target = self.active_config_mut();
+        let map = target.map.get_or_insert_with(MapConfig::default);
+        if map
+            .focus_country_codes
+            .iter()
+            .any(|entry| entry.eq_ignore_ascii_case(code))
+        {
+            self.set_status(format!("{} is already in the map focus list", code));
+            return Ok(());
+        }
+        map.focus_country_codes.push(code.to_string());
+        self.clamp_config_editor_selection();
+        self.set_status(format!(
+            "Draft updated: added {} to map focus countries. Use /apply to save",
+            code
+        ));
+        Ok(())
+    }
+
+    fn remove_map_focus_country_from_draft(&mut self, code: &str) -> Result<()> {
+        let target = self.active_config_mut();
+        let map = target.map.get_or_insert_with(MapConfig::default);
+        let original_len = map.focus_country_codes.len();
+        map.focus_country_codes
+            .retain(|entry| !entry.eq_ignore_ascii_case(code));
+        if map.focus_country_codes.len() < original_len {
+            self.clamp_config_editor_selection();
+            self.set_status(format!(
+                "Draft updated: removed {} from map focus countries. Use /apply to save",
+                code
+            ));
+        }
+        Ok(())
+    }
+
+    fn apply_config_command(&mut self, action: CommandAction) -> Result<()> {
+        let editing_draft = self.config_draft.is_some();
+        let target = if let Some(draft) = self.config_draft.as_mut() {
+            draft
+        } else {
+            &mut self.config
+        };
+
+        let status =
+            apply_command_action_to_config(target, &action).map_err(|message| anyhow!(message))?;
+
+        if editing_draft {
+            if let Some(status) = status {
+                self.set_status(format!("Draft updated: {}. Use /apply to save", status));
+            }
+        } else {
+            self.config.save()?;
+            self.sync_runtime_to_config();
+
+            if let Some(status) = status {
+                self.set_status(status);
+            }
         }
 
+        Ok(())
+    }
+
+    fn begin_config_draft(&mut self) {
+        if self.config_draft.is_none() {
+            self.config_draft = Some(self.config.clone());
+        }
+        self.clamp_config_editor_selection();
+        self.set_status(
+            "Config draft opened. Use /apply, /discard, /reset, or /restore".to_string(),
+        );
+    }
+
+    fn apply_config_draft(&mut self) -> Result<()> {
+        let Some(draft) = self.config_draft.take() else {
+            self.set_status("No config draft to apply".to_string());
+            return Ok(());
+        };
+
+        self.config.save_snapshot()?;
+        self.config = draft;
+        self.config.save()?;
+        self.sync_runtime_to_config();
+        self.config_editor = None;
+        self.set_status("Config draft applied".to_string());
+        Ok(())
+    }
+
+    fn discard_config_draft(&mut self) {
+        if self.config_draft.take().is_some() {
+            self.config_editor = None;
+            self.set_status("Config draft discarded".to_string());
+        } else {
+            self.set_status("No config draft to discard".to_string());
+        }
+    }
+
+    fn reset_config_draft(&mut self) {
+        let was_editing = self.config_draft.is_some();
+        self.config_draft = Some(Config::default());
+        self.clamp_config_editor_selection();
+        self.set_status(if was_editing {
+            "Config draft reset to defaults".to_string()
+        } else {
+            "Default config draft opened".to_string()
+        });
+    }
+
+    fn restore_config_draft(&mut self) -> Result<()> {
+        let restored = Config::load_latest_snapshot()?;
+        self.config_draft = Some(restored);
+        self.clamp_config_editor_selection();
+        self.set_status(
+            "Latest saved preferences loaded into draft. Use /apply to save".to_string(),
+        );
         Ok(())
     }
 
@@ -1134,8 +1817,8 @@ impl App {
         let (from_currency, to_currency) = self.config.effective_default_currency_pair();
         self.currency_converter =
             CurrencyConverter::new_with_pairs(&from_currency, &to_currency, currency_pairs);
-        self.time_converter =
-            TimeConverter::new(&self.config.current_city.code, &self.config.home_city.code);
+        let (from_city_code, to_city_code) = self.config.effective_default_time_pair();
+        self.time_converter = TimeConverter::new(&from_city_code, &to_city_code);
 
         self.weather_city_index = NZ_CITIES
             .iter()
@@ -1187,6 +1870,13 @@ mod tests {
         let action = parse_command("/country").expect("command should parse");
 
         assert_eq!(action, CommandAction::OpenCountryPicker);
+    }
+
+    #[test]
+    fn parses_config_command_to_draft_mode() {
+        let action = parse_command("/config").expect("command should parse");
+
+        assert_eq!(action, CommandAction::EnterConfigDraft);
     }
 
     #[test]
@@ -1299,5 +1989,76 @@ mod tests {
             .expect("currency config should exist");
         assert_eq!(currency.default_from.as_deref(), Some("NZD"));
         assert_eq!(currency.default_to.as_deref(), Some("JPY"));
+    }
+
+    #[test]
+    fn config_draft_can_be_opened_reset_and_discarded() {
+        let mut app = App::new(Config::default());
+
+        app.begin_config_draft();
+        assert!(app.has_config_draft());
+
+        if let Some(draft) = app.config_draft.as_mut() {
+            draft.current_city.code = "AKL".to_string();
+        }
+
+        app.reset_config_draft();
+        assert_eq!(
+            app.config_draft
+                .as_ref()
+                .map(|draft| draft.current_city.code.as_str()),
+            Some("WLG")
+        );
+
+        app.discard_config_draft();
+        assert!(!app.has_config_draft());
+    }
+
+    #[test]
+    fn config_command_opens_editor_and_draft() {
+        let mut app = App::new(Config::default());
+        app.command_buffer = "/config".to_string();
+
+        app.execute_command();
+
+        assert!(app.has_config_draft());
+        assert_eq!(
+            app.config_editor_state().map(|editor| editor.tab),
+            Some(ConfigTab::Time)
+        );
+    }
+
+    #[test]
+    fn config_editor_can_add_and_remove_currency_country() {
+        let mut app = App::new(Config::default());
+        app.open_config_editor();
+
+        if let Some(editor) = app.config_editor.as_mut() {
+            editor.tab = ConfigTab::Currency;
+        }
+
+        app.add_currency_country_to_draft("JPN")
+            .expect("should add country");
+        assert_eq!(
+            app.config_draft
+                .as_ref()
+                .and_then(|draft| draft.currency.as_ref())
+                .map(|currency| currency.country_codes.clone()),
+            Some(vec!["JPN".to_string()])
+        );
+
+        if let Some(editor) = app.config_editor.as_mut() {
+            editor.selected = 2;
+        }
+        app.remove_config_editor_item()
+            .expect("should remove selected country");
+
+        assert_eq!(
+            app.config_draft
+                .as_ref()
+                .and_then(|draft| draft.currency.as_ref())
+                .map(|currency| currency.country_codes.clone()),
+            Some(Vec::new())
+        );
     }
 }

@@ -483,7 +483,8 @@ pub struct WeatherService {
 impl WeatherService {
     pub fn new() -> Self {
         let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(5))
+            .user_agent(format!("nzi-cli/{}", env!("CARGO_PKG_VERSION")))
+            .timeout(Duration::from_secs(10))
             .build()
             .unwrap_or_default();
 
@@ -530,6 +531,10 @@ impl WeatherService {
 
         self.cache.insert(cache_key, weather.clone());
         Ok(weather)
+    }
+
+    pub fn cached_weather(&self, location: &str) -> Option<CurrentWeather> {
+        self.cache.get(&location.to_lowercase()).cloned()
     }
 
     async fn fetch_weather(&self, location: &str) -> Result<CurrentWeather> {

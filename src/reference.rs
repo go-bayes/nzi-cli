@@ -623,6 +623,14 @@ pub fn focal_country_code_for_currency(code: &str) -> Option<&'static str> {
     currency_by_code(code).map(|currency| currency.focal_country_code)
 }
 
+pub fn canonical_currency_code_for_country(code: &str) -> Option<&'static str> {
+    let code = normalise_country_code(code);
+    CURRENCY_REFERENCES
+        .iter()
+        .find(|currency| currency.focal_country_code == code.as_str())
+        .map(|currency| currency.code)
+}
+
 pub fn search_countries(query: &str) -> Vec<&'static CountryReference> {
     let query = query.trim().to_lowercase();
     let mut matches: Vec<_> = COUNTRY_REFERENCES
