@@ -8,6 +8,7 @@
 3. Weather remains anchored to New Zealand and does not generalise with the rest of the app.
 4. The map is optional, not foundational. It may be disabled entirely, even for NZ-focused use.
 5. The current config editor, draft workflow, and snapshot restore behaviour remain useful and should be preserved while the data model is simplified.
+6. Reference data should move out of hand-written Rust arrays and into checked-in source files with generated Rust output.
 
 ## Product decisions
 1. Anchor city is the primary user choice.
@@ -18,6 +19,8 @@
 6. That capital-city fallback is a helper, not the core model. The primary model remains city-based.
 7. Weather stays NZ-only for now.
 8. The map should be user-toggleable and may be removed from non-NZ workflows if that keeps the product cleaner.
+9. `/currency` should no longer behave like a separate FX-configuration command. It should resolve currency to country, then country to representative city, and finally add that city to the target-city list.
+10. `/country` and `/currency` should converge on the same internal place-selection path.
 
 ## Why this is better
 1. There is one mental model instead of parallel models for time, currency, and map state.
@@ -29,19 +32,24 @@
 ## Current state
 1. Config draft, apply, discard, reset, reload, and restore already exist.
 2. Snapshot save and restore already exist.
-3. A visual `/config` editor already exists with `Time`, `Currency`, `Map`, and `Actions` tabs.
+3. A visual `/config` editor already exists with `Places`, `Map`, and `Actions` tabs.
 4. Search-backed pickers already exist for country, currency, and map selections.
-5. The current codebase still reflects an older, more general model:
+5. The current codebase still reflects an older, more general data layer:
    - `time.city_codes`
    - `currency.country_codes`
-   - map country focus settings
+   - a partial hand-maintained country and currency registry in `reference.rs`
 6. That model works, but it is no longer the desired long-term shape.
+7. The editor now has a `Places` tab with anchor-city selection, target-city add/remove/reorder, country and currency helper flows, and per-section resets.
+8. `/currency` now follows the place model by resolving `currency -> country -> representative city -> target city`.
+9. The next major constraint is data coverage, not interaction design.
 
 ## Resume here
-1. Refactor the data model around `anchor_city` and `target_cities`.
-2. Keep legacy config compatibility while deriving the new model from old fields where possible.
-3. Simplify the config editor so it edits anchor city, target cities, and map visibility rather than parallel time and currency sources.
-4. Decide whether the map remains a panel that can be hidden, or becomes an optional feature entirely outside the default layout.
+1. Introduce checked-in source data under `data/`:
+   - `countries.csv` for canonical country and currency facts
+   - `representative_cities.json` for curated per-country default city records
+2. Generate Rust reference tables from those files at build time.
+3. Preserve the current runtime API in `reference.rs` and `config.rs` while swapping the backing data source.
+4. Expand country coverage to all countries and expand currency coverage to the currencies we want to support.
 5. Keep `Esc` in the config editor as “close editor only”; do not silently discard the draft.
 
 ## Design principles
@@ -54,6 +62,8 @@
 7. Restore means return to a previously saved preference snapshot.
 8. Reload means re-read the current config file from disk.
 9. Reset means replace draft state with built-in defaults, not old user preferences.
+10. Currency commands should add places, not create an independent list of FX preferences.
+11. Canonical reference facts and curated product defaults should live in separate source files.
 
 ## Target data model
 1. Keep the TOML schema backward compatible where practical.
@@ -69,9 +79,21 @@
    - time: anchor city to each target city
    - currency: anchor city currency to each target city currency
    - map: anchor city to each target city when enabled
-5. Treat currency-specific additions as convenience input that resolves back to a city where possible.
+5. Treat currency-specific additions as convenience input that resolves back to a city through country.
 6. If a country is chosen without a city, default to the capital city for that country.
 7. Keep snapshot metadata and restore support under the config directory.
+8. Legacy `currency` config may continue to load, but the primary runtime path should derive from anchor and target cities.
+
+## Reference data strategy
+1. Keep runtime fully offline and deterministic.
+2. Avoid introducing a country or city crate as the primary source of truth.
+3. Store canonical country and currency facts in `data/countries.csv`.
+4. Store curated representative-city defaults in `data/representative_cities.json`.
+5. Generate Rust tables from those files in `build.rs`.
+6. Keep generated Rust out of hand-edited source modules where practical.
+7. Treat representative-city choice as a product decision, not raw reference fact.
+8. Allow multi-timezone countries to start with one default representative city, with optional later expansion.
+9. Shared-currency cases such as `EUR` need an explicit canonical focal-country policy for the `/currency` shortcut.
 
 ## Migration strategy
 1. Existing configs must continue to load.
@@ -110,6 +132,7 @@
    - anchor city
    - target city list
    - optional helper actions for adding a country or currency by resolving to a city
+   - reset actions for anchor city and target-city list
 5. `Map` should own:
    - map enabled or disabled
    - any remaining NZ-specific map preferences
@@ -127,6 +150,7 @@
 3. Allow add, remove, and reorder for target cities.
 4. Allow changing the anchor city without implicitly rewriting the target list.
 5. Offer a helper flow for “add country” or “add currency”, which resolves to a city, usually the capital.
+6. Keep country and currency helpers semantically aligned by resolving both through country to representative city.
 
 ### Map
 1. Let the user opt out of the map entirely.
@@ -164,6 +188,14 @@
 1. Add migration tests.
 2. Add editor-flow tests.
 3. Update README and usage text to match the simplified model.
+4. Remove stale references to `/currency` as a separate FX configuration surface.
+
+### Phase 5 — Generated reference data
+1. Add `data/countries.csv` for canonical country and currency metadata.
+2. Add `data/representative_cities.json` for curated default city metadata.
+3. Add `build.rs` to validate and generate Rust reference tables.
+4. Swap `reference.rs` to consume generated data without changing its public lookup API.
+5. Add tests covering country count, representative-city coverage, and shared-currency policy.
 
 ## Acceptance criteria
 1. The user can choose one anchor city and one ordered target-city list in `/config`.
@@ -173,10 +205,12 @@
 5. The user can disable the map.
 6. Existing configs still load without breakage.
 7. Draft apply, discard, reload, reset, and restore continue to work.
+8. `/currency` behaves as a place-selection shortcut rather than a separate configuration path.
+9. Country and currency search cover the full supported registry.
+10. Each supported country resolves to one default representative city.
 
 ## Immediate next coding step
-1. Rewrite the config model around explicit anchor city and target cities.
-2. Add migration logic from `time.city_codes` and `currency.country_codes`.
-3. Replace the current `Time` and `Currency` tabs with a unified `Places` tab.
-4. Add map enable or disable control.
-5. Keep the existing draft and snapshot workflow intact while the editor is reworked.
+1. Commit the current place-driven UI and runtime changes as a checkpoint.
+2. Add `data/countries.csv` and `data/representative_cities.json` with the current supported subset.
+3. Add `build.rs` and generate the existing reference tables from those source files.
+4. Keep the generated-output refactor behaviour-preserving before expanding coverage.

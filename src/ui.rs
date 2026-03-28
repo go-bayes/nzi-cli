@@ -8,7 +8,7 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, Paragraph, Wrap},
+    widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
 };
 
 use unicode_width::UnicodeWidthStr;
@@ -68,6 +68,7 @@ fn draw_config_editor_overlay(frame: &mut Frame, area: Rect, app: &App) {
     let y = (area.height.saturating_sub(popup_height)) / 2;
     let popup_area = Rect::new(x, y, popup_width, popup_height);
 
+    frame.render_widget(Clear, popup_area);
     frame.render_widget(
         Block::default().style(Style::default().bg(catppuccin::BASE)),
         popup_area,
@@ -357,6 +358,7 @@ fn draw_picker_overlay(frame: &mut Frame, area: Rect, app: &App) {
     let y = (area.height.saturating_sub(popup_height)) / 2;
     let popup_area = Rect::new(x, y, popup_width, popup_height);
 
+    frame.render_widget(Clear, popup_area);
     frame.render_widget(
         Block::default().style(Style::default().bg(catppuccin::BASE)),
         popup_area,
@@ -458,6 +460,7 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
     let help_area = Rect::new(x, y, help_width, help_height);
 
     // clear the area behind
+    frame.render_widget(Clear, help_area);
     let clear = Block::default().style(Style::default().bg(catppuccin::BASE));
     frame.render_widget(clear, help_area);
 
@@ -519,19 +522,22 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
         ]),
         Line::from(vec![
             Span::styled("  Space     ", Style::default().fg(catppuccin::SAPPHIRE)),
-            Span::styled("Cycle city/currency", Style::default().fg(catppuccin::TEXT)),
+            Span::styled(
+                "Cycle weather city / current target",
+                Style::default().fg(catppuccin::TEXT),
+            ),
         ]),
         Line::from(vec![
             Span::styled("  s         ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled(
-                "Swap (time/currency) / toggle weather view",
+                "Swap current comparison / toggle weather view",
                 Style::default().fg(catppuccin::TEXT),
             ),
         ]),
         Line::from(vec![
             Span::styled("  e         ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled(
-                "Edit (time/currency panels, arrows to adjust)",
+                "Edit time panel input or FX amount",
                 Style::default().fg(catppuccin::TEXT),
             ),
         ]),
@@ -574,7 +580,7 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
         Line::from(vec![
             Span::styled("  /config   ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled(
-                "Open the staged config editor",
+                "Open the staged Places/Map editor",
                 Style::default().fg(catppuccin::TEXT),
             ),
         ]),
@@ -627,7 +633,7 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
         Line::from(vec![
             Span::styled("  /currency ", Style::default().fg(catppuccin::SAPPHIRE)),
             Span::styled(
-                "Open picker, set pair, pin, or sync",
+                "Add a place by currency",
                 Style::default().fg(catppuccin::TEXT),
             ),
         ]),
@@ -640,15 +646,24 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
         ]),
         Line::from(""),
         Line::from(vec![Span::styled(
+            "Config Editor",
+            Style::default()
+                .fg(catppuccin::PEACH)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from("  Places: anchor city + ordered target cities"),
+        Line::from("  j/k move  J/K reorder  Enter select  a add  x remove"),
+        Line::from("  Add country/currency resolves to a representative city"),
+        Line::from(""),
+        Line::from(vec![Span::styled(
             "Examples",
             Style::default()
                 .fg(catppuccin::PEACH)
                 .add_modifier(Modifier::BOLD),
         )]),
+        Line::from("  /config"),
         Line::from("  /country united kingdom"),
-        Line::from("  /currency nzd -> jpy"),
-        Line::from("  /currency pin cad"),
-        Line::from("  /currency sync off"),
+        Line::from("  /currency yen"),
         Line::from("  /map countries"),
     ];
 

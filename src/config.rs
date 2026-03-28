@@ -597,9 +597,14 @@ impl Config {
 
     pub fn effective_default_currency_pair(&self) -> (String, String) {
         let settings = self.effective_currency_settings();
-        let from = settings
-            .default_from
-            .clone()
+        let from = self
+            .all_cities()
+            .into_iter()
+            .find(|city| {
+                city.code
+                    .eq_ignore_ascii_case(&self.effective_anchor_city_code())
+            })
+            .map(|city| city.currency.clone())
             .unwrap_or_else(|| self.current_city.currency.clone());
         let targets = self.effective_currency_targets(&from, &settings);
         let fallback_to = settings
@@ -611,9 +616,14 @@ impl Config {
 
     pub fn effective_currency_pairs(&self) -> Vec<(String, String)> {
         let settings = self.effective_currency_settings();
-        let from = settings
-            .default_from
-            .clone()
+        let from = self
+            .all_cities()
+            .into_iter()
+            .find(|city| {
+                city.code
+                    .eq_ignore_ascii_case(&self.effective_anchor_city_code())
+            })
+            .map(|city| city.currency.clone())
             .unwrap_or_else(|| self.current_city.currency.clone());
         let from = normalise_currency_code(&from);
 
@@ -798,30 +808,32 @@ impl Config {
         let from_currency = normalise_currency_code(from_currency);
         let mut targets = Vec::new();
 
-        if let Some(default_to) = &settings.default_to {
-            Self::push_unique_currency(&mut targets, default_to, &from_currency);
-        } else {
-            Self::push_unique_currency(&mut targets, &self.home_city.currency, &from_currency);
-        }
-
-        for country_code in &settings.country_codes {
-            if let Some(currency_code) = canonical_currency_code_for_country(country_code) {
-                Self::push_unique_currency(&mut targets, currency_code, &from_currency);
-            }
-        }
-
         for city in self.effective_target_cities() {
             Self::push_unique_currency(&mut targets, &city.currency, &from_currency);
         }
 
-        if settings.sync_with_cities && targets.is_empty() {
-            for city in self.all_cities() {
-                Self::push_unique_currency(&mut targets, &city.currency, &from_currency);
+        if targets.is_empty() {
+            if let Some(default_to) = &settings.default_to {
+                Self::push_unique_currency(&mut targets, default_to, &from_currency);
+            } else {
+                Self::push_unique_currency(&mut targets, &self.home_city.currency, &from_currency);
             }
-        }
 
-        for code in &settings.pinned_codes {
-            Self::push_unique_currency(&mut targets, code, &from_currency);
+            for country_code in &settings.country_codes {
+                if let Some(currency_code) = canonical_currency_code_for_country(country_code) {
+                    Self::push_unique_currency(&mut targets, currency_code, &from_currency);
+                }
+            }
+
+            if settings.sync_with_cities {
+                for city in self.all_cities() {
+                    Self::push_unique_currency(&mut targets, &city.currency, &from_currency);
+                }
+            }
+
+            for code in &settings.pinned_codes {
+                Self::push_unique_currency(&mut targets, code, &from_currency);
+            }
         }
 
         targets
@@ -1042,7 +1054,7 @@ mod tests {
     }
 
     #[test]
-    fn derives_currency_pairs_from_city_set_and_pins() {
+    fn derives_currency_pairs_from_places_before_legacy_currency_overrides() {
         let mut config = Config::default();
         config.currency = Some(CurrencyConfig {
             sync_with_cities: true,
@@ -1057,10 +1069,13 @@ mod tests {
 
         assert_eq!(
             pairs.first(),
-            Some(&(String::from("NZD"), String::from("SGD")))
+            Some(&(String::from("NZD"), String::from("USD")))
         );
         assert!(pairs.contains(&(String::from("NZD"), String::from("USD"))));
-        assert!(pairs.contains(&(String::from("NZD"), String::from("CAD"))));
+        assert!(pairs.contains(&(String::from("NZD"), String::from("JPY"))));
+        assert!(pairs.contains(&(String::from("NZD"), String::from("GBP"))));
+        assert!(pairs.contains(&(String::from("NZD"), String::from("SGD"))));
+        assert!(!pairs.contains(&(String::from("NZD"), String::from("CAD"))));
     }
 
     #[test]

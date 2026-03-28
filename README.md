@@ -1,16 +1,17 @@
 # nzi
 
-A terminal dashboard for thinking about New Zealand and its place in the world, with local weather, world clocks, currency conversion, and a configurable world map focus.
+A terminal dashboard for thinking about New Zealand and its place in the world, with NZ weather, an anchor city, target cities, aligned time and currency views, and an optional world map.
 
 ![nzi static](images/nzi.png)
 
 ## Features
 
 - **NZ Weather** - Current conditions and 3-day forecast for NZ cities (Auckland, Wellington, Christchurch, Dunedin) with wttr-style grid view
-- **World Clocks** - Track time across Wellington and your home city (London, BOS, LA, Austin, Paris, Sydney, Tokyo, Singapore, Dhaka, Beijing)
-- **Currency Converter** - Live exchange rates with config-driven default pairs and cycle lists
-- **Time Converter** - Convert times between NZ and overseas cities (Useful for arranging meetings)
-- **Configurable World Map** - Route, city, country, and mixed map modes with focal-country control
+- **Places Model** - Choose one anchor city and an ordered list of target cities
+- **World Clocks** - Track time across representative cities without managing separate timezone lists
+- **Currency Converter** - Live exchange rates derived from the same target-city list used by time comparison
+- **Time Converter** - Convert times from the anchor city to the current target city
+- **Optional World Map** - Anchor-to-target routes with a map panel you can disable
 
 Of course, you can get this information from a browser, but it's much nicer from the comfort of the terminal (just type 'nzi'). 
 
@@ -88,10 +89,22 @@ Type `/help` to show the help overlay.
 
 | Key | Action |
 |-----|--------|
-| `Space` | Cycle city/currency |
-| `s` | Swap (time/currency) / toggle weather view |
-| `e` | Edit (time/currency) |
+| `Space` | Cycle weather city or current target |
+| `s` | Swap current comparison / toggle weather view |
+| `e` | Edit time input or FX amount |
 | `0-9` | Direct entry (time in normal mode, amount in currency) |
+
+### Config Editor
+
+| Key | Action |
+|-----|--------|
+| `Tab` | Switch editor tabs |
+| `j/k` | Move between rows |
+| `J/K` | Reorder target cities |
+| `Enter` | Activate selected row |
+| `a` | Add target city |
+| `x` | Remove selected target city or map focus country |
+| `Esc` | Close editor and keep draft open |
 
 ### Picker Controls
 
@@ -107,24 +120,27 @@ Type `/help` to show the help overlay.
 |---------|--------|
 | `/help` or `/h` | Show help overlay |
 | `/edit` or `/e` | Edit config in $EDITOR |
+| `/config` | Open the staged config editor |
 | `/quit` or `/q` | Quit application |
 | `/reload` (or `/r`) | Reload config from disk |
+| `/apply` | Apply the current config draft |
+| `/discard` | Discard the current config draft |
+| `/reset` | Reset the current draft to defaults |
+| `/restore` | Restore the latest saved snapshot into the draft |
 | `/country` or `/focus` | Open focal-country picker |
 | `/country <query>` | Set focal country by name, alias, or ISO-3 code |
-| `/currency` | Open currency pair picker |
-| `/currency <from> -> <to>` | Set default currency pair |
-| `/currency pin <query>` | Add a pinned currency to the effective cycle list |
-| `/currency sync on|off` | Toggle derive-from-cities behaviour |
+| `/currency` | Open currency-to-place picker |
+| `/currency <query>` | Add a place by currency via country |
 | `/map` | Open map-mode picker |
 | `/map <route\|cities\|countries\|both>` | Set map mode directly |
 
-The bare `/country`, `/currency`, and `/map` commands open interactive search overlays. The typed forms remain useful for quick direct changes and for scripting your config edits through the terminal.
+The bare `/country`, `/currency`, and `/map` commands open interactive search overlays. `/config` opens the staged editor, whose `Places` tab now drives the main workflow: anchor city, target cities, representative-city pickers, and country or currency helpers that resolve back to cities.
 
 ## Configuration
 
 Configuration is stored in `~/.config/nzi-cli/config.toml` and is created automatically on first run.
 
-Change the defaults to suit. `[home_city]` is the default overseas paired city. `currency` and `map` are optional sections, so older configs still load.
+Change the defaults to suit. Older config sections still load, but the current product model is built around an anchor city and target cities. `currency` and `map` remain optional sections.
 
 
 ```toml
@@ -158,15 +174,14 @@ show_animations = true
 animation_speed_ms = 100
 # editor = "nvim"  # defaults to $EDITOR or nvim
 
-[currency]
-sync_with_cities = true
-pinned_codes = ["CAD", "JPY"]
-default_from = "NZD"
-default_to = "GBP"
+[time]
+anchor_city_code = "WLG"
+target_city_codes = ["BOS", "LDN", "TYO"]
 
 [map]
-mode = "countries"
-focal_country_code = "GBR"
+enabled = true
+mode = "route"
+# focal_country_code = "GBR"
 # focus_city_code = "BOS"
 # focus_country_codes = ["USA", "GBR"]
 ```
@@ -182,7 +197,7 @@ focal_country_code = "GBR"
 Auckland, Wellington, Christchurch, Dunedin
 
 ### World Cities (Time/Currency)
-London, Boston, Los Angeles, Austin, Paris, Berlin, Sydney, Tokyo, Singapore, Kuala Lumpur, Rio, Addis Ababa, Dhaka, Beijing
+Representative cities drawn from the built-in catalogue, one per country and timezone combination where practical. By default this includes Boston, London, Los Angeles, Austin, Paris, Berlin, Sydney, Tokyo, Singapore, Kuala Lumpur, Rio, Addis Ababa, Dhaka, and Beijing.
 
 ## Requirements
 
@@ -190,10 +205,11 @@ London, Boston, Los Angeles, Austin, Paris, Berlin, Sydney, Tokyo, Singapore, Ku
 
 ### Weaknesses
 
--  Time/DST handling uses chrono-tz for DST-aware conversion of entered times (good), but assumes "today" as the date. Be aware there's no way to pick arbitrary dates yet; ambiguous/invalid local times are silently dropped.
--  Weather is still explicitly NZ-only. The broader customisation work currently targets map and currency behaviour, not arbitrary-country weather.
--  The picker flow currently covers focal country, currency pair, and map mode, but not full city editing, pin removal, or multi-country map management.
--  Weather lacks staleness checks, so make sure you refresh with /r if it's been sitting around a while.
+-  Time/DST handling uses chrono-tz for DST-aware conversion of entered times, but assumes "today" as the date. There is still no arbitrary-date selection.
+-  Weather is explicitly NZ-only by design.
+-  The city catalogue is curated and the picker only shows representative cities, so not every possible city is exposed.
+-  Country and currency helper flows only work when there is a representative city already configured for that place.
+-  Older `currency` config still loads for compatibility, but the current product model derives currency behaviour from anchor and target cities.
 
 ## Licence
 

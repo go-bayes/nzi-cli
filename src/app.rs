@@ -5,10 +5,13 @@ use std::time::{Duration, Instant};
 use anyhow::{Result, anyhow};
 use chrono::Timelike;
 
-use crate::config::{City, Config, CurrencyConfig, MapConfig, MapMode, TimeConfig};
+use crate::config::{City, Config, MapConfig, MapMode, TimeConfig};
 use crate::exchange::{CurrencyConverter, ExchangeService};
 use crate::map::NZ_CITIES;
-use crate::reference::{lookup_country, lookup_currency, search_countries, search_currencies};
+use crate::reference::{
+    country_by_code, focal_country_code_for_currency, lookup_country, lookup_currency,
+    search_countries, search_currencies,
+};
 use crate::timezone::{CityTime, TimeConverter, TimezoneService};
 use crate::weather::{CurrentWeather, WeatherService};
 
@@ -191,8 +194,6 @@ pub struct ConfigEditorState {
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum PickerKind {
     Country,
-    CurrencyFrom,
-    CurrencyTo { from_code: String },
     MapMode,
     AnchorCity,
     TargetCity,
@@ -241,12 +242,10 @@ enum CommandAction {
     RestoreDraft,
     Refresh,
     SetFocalCountry { code: String, name: String },
-    SetCurrencyPair { from_code: String, to_code: String },
-    SetCurrencySync { enabled: bool },
-    PinCurrency { code: String },
+    AddPlaceCurrency { code: String, name: String },
     SetMapMode { mode: MapMode },
     OpenCountryPicker,
-    OpenCurrencyPicker,
+    OpenPlaceCurrencyPicker,
     OpenMapPicker,
 }
 
@@ -266,7 +265,7 @@ fn parse_command(input: &str) -> std::result::Result<CommandAction, String> {
         "/restore" => return Ok(CommandAction::RestoreDraft),
         "/refresh" => return Ok(CommandAction::Refresh),
         "/country" | "/focus" => return Ok(CommandAction::OpenCountryPicker),
-        "/currency" => return Ok(CommandAction::OpenCurrencyPicker),
+        "/currency" => return Ok(CommandAction::OpenPlaceCurrencyPicker),
         "/map" => return Ok(CommandAction::OpenMapPicker),
         _ => {}
     }
@@ -307,59 +306,24 @@ fn resolve_country_command(query: &str) -> std::result::Result<CommandAction, St
 fn resolve_currency_command(query: &str) -> std::result::Result<CommandAction, String> {
     let query = query.trim();
     if query.is_empty() {
-        return Err("usage: /currency <from> -> <to>".to_string());
+        return Err("usage: /currency <currency>".to_string());
     }
 
-    let lowered = query.to_lowercase();
-    if let Some(sync_value) = lowered.strip_prefix("sync ") {
-        let enabled = match sync_value.trim() {
-            "on" | "true" => true,
-            "off" | "false" => false,
-            other => return Err(format!("invalid sync value: {}", other)),
-        };
-        return Ok(CommandAction::SetCurrencySync { enabled });
+    if query.contains("->")
+        || query.to_lowercase().starts_with("pin ")
+        || query.to_lowercase().starts_with("sync ")
+    {
+        return Err(
+            "currency is now place-driven: use /currency <code-or-name> to add a place".to_string(),
+        );
     }
 
-    if let Some(pin_query) = query.strip_prefix("pin ") {
-        let pin_query = pin_query.trim();
-        if pin_query.is_empty() {
-            return Err("usage: /currency pin <currency>".to_string());
-        }
-        let currency = lookup_currency(pin_query)
-            .ok_or_else(|| format!("currency not found: {}", pin_query))?;
-        return Ok(CommandAction::PinCurrency {
-            code: currency.code.to_string(),
-        });
-    }
+    let currency =
+        lookup_currency(query).ok_or_else(|| format!("currency not found: {}", query))?;
 
-    let (from_query, to_query) = if let Some((from, to)) = query.split_once("->") {
-        (from.trim(), to.trim())
-    } else {
-        let mut parts = query.split_whitespace();
-        let from = parts
-            .next()
-            .ok_or_else(|| "usage: /currency <from> <to>".to_string())?;
-        let to = parts
-            .next()
-            .ok_or_else(|| "usage: /currency <from> <to>".to_string())?;
-        if parts.next().is_some() {
-            return Err("use /currency <from> -> <to> for names with spaces".to_string());
-        }
-        (from, to)
-    };
-
-    if from_query.is_empty() || to_query.is_empty() {
-        return Err("usage: /currency <from> -> <to>".to_string());
-    }
-
-    let from_currency =
-        lookup_currency(from_query).ok_or_else(|| format!("currency not found: {}", from_query))?;
-    let to_currency =
-        lookup_currency(to_query).ok_or_else(|| format!("currency not found: {}", to_query))?;
-
-    Ok(CommandAction::SetCurrencyPair {
-        from_code: from_currency.code.to_string(),
-        to_code: to_currency.code.to_string(),
+    Ok(CommandAction::AddPlaceCurrency {
+        code: currency.code.to_string(),
+        name: currency.name.to_string(),
     })
 }
 
@@ -386,29 +350,33 @@ fn apply_command_action_to_config(
             map.focal_country_code = Some(code.clone());
             Ok(Some(format!("Focal country set to {} ({})", name, code)))
         }
-        CommandAction::SetCurrencyPair { from_code, to_code } => {
-            let currency = config.currency.get_or_insert_with(CurrencyConfig::default);
-            currency.default_from = Some(from_code.clone());
-            currency.default_to = Some(to_code.clone());
-            Ok(Some(format!(
-                "Default currency pair set to {} -> {}",
-                from_code, to_code
-            )))
-        }
-        CommandAction::SetCurrencySync { enabled } => {
-            let currency = config.currency.get_or_insert_with(CurrencyConfig::default);
-            currency.sync_with_cities = *enabled;
-            Ok(Some(format!(
-                "Currency sync with cities {}",
-                if *enabled { "enabled" } else { "disabled" }
-            )))
-        }
-        CommandAction::PinCurrency { code } => {
-            let currency = config.currency.get_or_insert_with(CurrencyConfig::default);
-            if !currency.pinned_codes.iter().any(|value| value == code) {
-                currency.pinned_codes.push(code.clone());
+        CommandAction::AddPlaceCurrency { code, name } => {
+            let country_code = focal_country_code_for_currency(code)
+                .ok_or_else(|| format!("no focal country configured for {}", name))?;
+            let country_name = country_by_code(country_code)
+                .map(|country| country.name.to_string())
+                .unwrap_or_else(|| country_code.to_string());
+            let city = config
+                .representative_city_for_currency_code(code)
+                .map(|city| (city.code.clone(), city.name.clone()))
+                .ok_or_else(|| format!("no representative city configured for {}", name))?;
+            let anchor_code = config.effective_anchor_city_code();
+            let time = config.time.get_or_insert_with(TimeConfig::default);
+            time.anchor_city_code
+                .get_or_insert_with(|| config.current_city.code.clone());
+            time.city_codes.clear();
+            if !time
+                .target_city_codes
+                .iter()
+                .any(|value| value.eq_ignore_ascii_case(&city.0))
+                && !city.0.eq_ignore_ascii_case(&anchor_code)
+            {
+                time.target_city_codes.push(city.0.clone());
             }
-            Ok(Some(format!("Pinned currency {}", code)))
+            Ok(Some(format!(
+                "{} -> {} -> {} added to target cities",
+                code, country_name, city.1
+            )))
         }
         CommandAction::SetMapMode { mode } => {
             let map = config.map.get_or_insert_with(MapConfig::default);
@@ -434,7 +402,7 @@ fn apply_command_action_to_config(
         | CommandAction::RestoreDraft
         | CommandAction::Refresh
         | CommandAction::OpenCountryPicker
-        | CommandAction::OpenCurrencyPicker
+        | CommandAction::OpenPlaceCurrencyPicker
         | CommandAction::OpenMapPicker => Ok(None),
     }
 }
@@ -929,16 +897,9 @@ impl App {
                 self.picker = None;
                 self.apply_config_command(CommandAction::SetFocalCountry { code, name })
             }
-            (PickerKind::CurrencyFrom, PickerChoice::Currency { code, .. }) => {
-                self.open_picker(PickerKind::CurrencyTo { from_code: code });
-                Ok(())
-            }
-            (PickerKind::CurrencyTo { from_code }, PickerChoice::Currency { code, .. }) => {
+            (PickerKind::PlaceCurrency, PickerChoice::Currency { code, name }) => {
                 self.picker = None;
-                self.apply_config_command(CommandAction::SetCurrencyPair {
-                    from_code,
-                    to_code: code,
-                })
+                self.apply_config_command(CommandAction::AddPlaceCurrency { code, name })
             }
             (PickerKind::MapMode, PickerChoice::MapMode { mode, .. }) => {
                 self.picker = None;
@@ -955,10 +916,6 @@ impl App {
             (PickerKind::PlaceCountry, PickerChoice::Country { code, name }) => {
                 self.picker = None;
                 self.add_country_to_places_draft(&code, &name)
-            }
-            (PickerKind::PlaceCurrency, PickerChoice::Currency { code, name }) => {
-                self.picker = None;
-                self.add_currency_to_places_draft(&code, &name)
             }
             (PickerKind::MapFocusCountry, PickerChoice::Country { code, .. }) => {
                 self.picker = None;
@@ -1049,8 +1006,8 @@ impl App {
             CommandAction::OpenCountryPicker => {
                 self.open_picker(PickerKind::Country);
             }
-            CommandAction::OpenCurrencyPicker => {
-                self.open_picker(PickerKind::CurrencyFrom);
+            CommandAction::OpenPlaceCurrencyPicker => {
+                self.open_picker(PickerKind::PlaceCurrency);
             }
             CommandAction::OpenMapPicker => {
                 self.open_picker(PickerKind::MapMode);
@@ -1238,15 +1195,11 @@ impl App {
         let picker = self.picker.as_ref()?;
         let title = match &picker.kind {
             PickerKind::Country => "Pick focal country".to_string(),
-            PickerKind::CurrencyFrom => "Pick source currency".to_string(),
-            PickerKind::CurrencyTo { from_code } => {
-                format!("Pick target currency for {}", from_code)
-            }
+            PickerKind::PlaceCurrency => "Add currency via country".to_string(),
             PickerKind::MapMode => "Pick map mode".to_string(),
             PickerKind::AnchorCity => "Pick anchor city".to_string(),
             PickerKind::TargetCity => "Add target city".to_string(),
             PickerKind::PlaceCountry => "Add country via city".to_string(),
-            PickerKind::PlaceCurrency => "Add currency via city".to_string(),
             PickerKind::MapFocusCountry => "Add map focus country".to_string(),
         };
         Some(title)
@@ -1256,13 +1209,13 @@ impl App {
         let picker = self.picker.as_ref()?;
         let prompt = match picker.kind {
             PickerKind::Country => "Search by country name, alias, or ISO-3 code",
-            PickerKind::CurrencyFrom => "Search by currency name, alias, or ISO-4217 code",
-            PickerKind::CurrencyTo { .. } => "Choose the paired target currency",
+            PickerKind::PlaceCurrency => {
+                "Pick a currency and resolve it through country to a representative city"
+            }
             PickerKind::MapMode => "Filter map modes or press Enter to select",
             PickerKind::AnchorCity => "Search by city code, name, or country",
             PickerKind::TargetCity => "Search by city code, name, or country",
             PickerKind::PlaceCountry => "Pick a country and resolve to its representative city",
-            PickerKind::PlaceCurrency => "Pick a currency and resolve to its representative city",
             PickerKind::MapFocusCountry => "Search by country name, alias, or ISO-3 code",
         };
         Some(prompt)
@@ -1316,16 +1269,8 @@ impl App {
                     name: country.name.to_string(),
                 })
                 .collect(),
-            PickerKind::CurrencyFrom => search_currencies(&picker.query)
+            PickerKind::PlaceCurrency => search_currencies(&picker.query)
                 .into_iter()
-                .map(|currency| PickerChoice::Currency {
-                    code: currency.code.to_string(),
-                    name: currency.name.to_string(),
-                })
-                .collect(),
-            PickerKind::CurrencyTo { from_code } => search_currencies(&picker.query)
-                .into_iter()
-                .filter(|currency| !currency.code.eq_ignore_ascii_case(from_code))
                 .map(|currency| PickerChoice::Currency {
                     code: currency.code.to_string(),
                     name: currency.name.to_string(),
@@ -1354,13 +1299,6 @@ impl App {
                 .map(|country| PickerChoice::Country {
                     code: country.code.to_string(),
                     name: country.name.to_string(),
-                })
-                .collect(),
-            PickerKind::PlaceCurrency => search_currencies(&picker.query)
-                .into_iter()
-                .map(|currency| PickerChoice::Currency {
-                    code: currency.code.to_string(),
-                    name: currency.name.to_string(),
                 })
                 .collect(),
             PickerKind::MapFocusCountry => search_countries(&picker.query)
@@ -1700,25 +1638,6 @@ impl App {
         Ok(())
     }
 
-    fn add_currency_to_places_draft(
-        &mut self,
-        currency_code: &str,
-        currency_name: &str,
-    ) -> Result<()> {
-        let representative_city = self
-            .active_config()
-            .representative_city_for_currency_code(currency_code)
-            .map(|city| (city.code.clone(), city.name.clone()))
-            .ok_or_else(|| anyhow!("no representative city configured for {}", currency_name))?;
-
-        self.add_target_city_to_draft(&representative_city.0)?;
-        self.set_status(format!(
-            "Draft updated: {} resolves to {}. Use /apply to save",
-            currency_code, representative_city.1
-        ));
-        Ok(())
-    }
-
     fn reset_anchor_city_in_draft(&mut self) -> Result<()> {
         let default_anchor = Config::default().effective_anchor_city_code();
         let target = self.active_config_mut();
@@ -1960,15 +1879,14 @@ mod tests {
     }
 
     #[test]
-    fn parses_currency_pair_with_arrow_syntax() {
-        let action =
-            parse_command("/currency new zealand dollar -> yen").expect("command should parse");
+    fn parses_currency_command_to_place_add() {
+        let action = parse_command("/currency yen").expect("command should parse");
 
         assert_eq!(
             action,
-            CommandAction::SetCurrencyPair {
-                from_code: "NZD".to_string(),
-                to_code: "JPY".to_string(),
+            CommandAction::AddPlaceCurrency {
+                code: "JPY".to_string(),
+                name: "Japanese yen".to_string(),
             }
         );
     }
@@ -1988,20 +1906,23 @@ mod tests {
     }
 
     #[test]
-    fn applies_currency_pin_command_to_config() {
+    fn applies_currency_command_to_places_config() {
         let mut config = Config::default();
-        let action = parse_command("/currency pin cad").expect("command should parse");
+        let action = parse_command("/currency yen").expect("command should parse");
 
         let status = apply_command_action_to_config(&mut config, &action)
             .expect("config mutation should succeed");
 
-        assert_eq!(status.as_deref(), Some("Pinned currency CAD"));
+        assert_eq!(
+            status.as_deref(),
+            Some("JPY -> Japan -> Tokyo added to target cities")
+        );
         assert_eq!(
             config
-                .currency
+                .time
                 .as_ref()
-                .map(|currency| currency.pinned_codes.clone()),
-            Some(vec!["CAD".to_string()])
+                .map(|time| time.target_city_codes.clone()),
+            Some(vec!["TYO".to_string()])
         );
     }
 
@@ -2057,46 +1978,27 @@ mod tests {
     }
 
     #[test]
-    fn picker_can_apply_currency_pair_selection() {
+    fn picker_can_apply_place_currency_selection() {
         let mut app = App::new(Config::default());
-        app.open_picker(PickerKind::CurrencyFrom);
-        if let Some(picker) = &mut app.picker {
-            picker.query = "nzd".to_string();
-        }
-
-        let from_code = match app
-            .current_picker_choice()
-            .expect("picker should return a choice")
-        {
-            PickerChoice::Currency { code, .. } => code,
-            other => panic!("unexpected picker choice: {other:?}"),
-        };
-
-        app.open_picker(PickerKind::CurrencyTo { from_code });
+        app.open_picker(PickerKind::PlaceCurrency);
         if let Some(picker) = &mut app.picker {
             picker.query = "yen".to_string();
         }
 
-        let mut config = Config::default();
-        let action = match app
+        let choice = app
             .current_picker_choice()
-            .expect("picker should return a choice")
-        {
-            PickerChoice::Currency { code, .. } => CommandAction::SetCurrencyPair {
-                from_code: "NZD".to_string(),
-                to_code: code,
-            },
+            .expect("picker should return a choice");
+
+        let mut config = Config::default();
+        let action = match choice {
+            PickerChoice::Currency { code, name } => CommandAction::AddPlaceCurrency { code, name },
             other => panic!("unexpected picker choice: {other:?}"),
         };
         apply_command_action_to_config(&mut config, &action)
             .expect("config mutation should succeed");
 
-        let currency = config
-            .currency
-            .as_ref()
-            .expect("currency config should exist");
-        assert_eq!(currency.default_from.as_deref(), Some("NZD"));
-        assert_eq!(currency.default_to.as_deref(), Some("JPY"));
+        let time = config.time.as_ref().expect("time config should exist");
+        assert_eq!(time.target_city_codes, vec!["TYO".to_string()]);
     }
 
     #[test]
@@ -2257,7 +2159,10 @@ mod tests {
         let mut app = App::new(Config::default());
         app.open_config_editor();
 
-        app.add_currency_to_places_draft("JPY", "Japanese yen")
+        app.apply_config_command(CommandAction::AddPlaceCurrency {
+            code: "JPY".to_string(),
+            name: "Japanese yen".to_string(),
+        })
             .expect("currency helper should resolve");
 
         assert_eq!(
