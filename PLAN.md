@@ -1,5 +1,31 @@
 # Configuration Roadmap
 
+## Current state
+1. `currency` and `map` config sections now exist in code and are loaded in a backward-compatible way.
+2. Config load/save now normalises city codes, currency codes, and map country codes, and validates duplicate city codes, timezones, currency codes, and map focus values.
+3. Currency cycling is now derived from effective config instead of a fixed `CURRENCY_PAIRS` constant.
+4. Canonical country and currency references now live in `src/reference.rs`, and both typed commands and picker search use the same alias matching rules.
+5. Slash commands now support:
+   - `/country <query>` or bare `/country`
+   - `/focus <query>`
+   - `/currency <from> -> <to>`
+   - `/currency pin <query>`
+   - `/currency sync on|off`
+   - `/map <route|cities|countries|both>` or bare `/map`
+6. Bare `/country`, `/currency`, and `/map` now open interactive picker overlays.
+7. Focused map mode now honours configured map settings and shows a visible summary in the UI title/footer.
+
+## Resume here
+1. Build the full `/config` staged editor on top of the now-stable config and picker foundations.
+2. Extend picker coverage to:
+   - add/remove `map.focus_country_codes`
+   - set `map.focus_city_code`
+   - expose `currency.pinned_codes` removal and reorder
+   - expose `currency.sync_with_cities` and pin management without typed commands
+3. Decide whether `current_city` should remain the NZ/weather anchor long-term, or whether NZ weather needs its own explicit anchor field before broader geographic generalisation.
+4. Keep weather NZ-only for now. If broadening weather later, split that work from map/currency customisation to avoid conflating concerns.
+5. Preserve compatibility with legacy configs and keep old defaults unless users explicitly save overrides.
+
 ## Vision
 1. Add an in-app `/config` menu that lets users review and edit world cities, currency behaviour, and map focus without touching raw TOML.
 2. Keep compatibility with existing `~/.config/nzi-cli/config.toml`, including migration of old `NYC` entries to `BOS`.
@@ -9,7 +35,7 @@
 1. The current model already supports customisation by editing the file directly, but users cannot safely discover or edit values in-app.
 2. City, currency, and map options can drift out of sync when users add/remove tracked cities.
 3. There is no dedicated flow for "set" and "reset" actions in the UI.
-4. Map focal choices are fixed in code paths, not user-configured.
+4. Map focal choices are now config-driven, but multi-value editing and broader discovery remain incomplete.
 
 ## Data design
 1. Keep the TOML schema structure and add non-breaking optional blocks.
@@ -26,6 +52,11 @@
    - valid timezone parsing
    - known currency codes
    - known city/country codes where available
+6. Current implementation status:
+   - done: optional `currency` and `map` sections, effective defaults, and validation
+   - done: canonical lookup layer in `src/reference.rs`
+   - done: slash-command and picker-backed edits for focal country, currency pair, and map mode
+   - remaining: staged `/config` editor and richer list-management flows
 
 ## In-app menu flow
 1. Add command `/config` with an overlay panel over the existing UI.
@@ -40,6 +71,7 @@
 6. `Ctrl-r` or `a` resets all config sections to defaults.
 7. `Esc` exits config mode without saving and returns to main panel.
 8. `/reload` remains an explicit config-file refresh and stays available in main mode.
+9. Keep the existing slash-command and picker path as a fast path even after `/config` exists.
 
 ## Cities tab
 1. Show sections: `current_city`, `home_city`, `tracked_cities`.
@@ -57,6 +89,10 @@
    1. on = derive from current city set
    2. off = use manual override
 5. Show a warning when a tracked currency is missing from all active cities.
+6. Current implementation note:
+   - typed commands and picker now cover pair selection
+   - typed commands cover sync toggle and pin add
+   - pin removal and reorder are still missing
 
 ## Map tab
 1. Show current map focus mode and active values.
@@ -68,6 +104,9 @@
    1. set focus city
    2. add/remove focus country
    3. reset map section
+7. Current implementation note:
+   - mode and focal country are already configurable
+   - focus city and multi-country management remain to be built
 
 ## Advanced tab
 1. Add raw JSON/TOML diagnostics view for unsupported edits.
@@ -91,6 +130,10 @@
    1. Validation and migration reporting.
    2. Tests for migration, dedupe, and menu state transitions.
    3. Update README usage and keybinding sections.
+5. Pre-menu foundation now complete:
+   1. schema, validation, and derived settings
+   2. reference lookup/search layer
+   3. command and picker controls for key map/currency operations
 
 ## Acceptance criteria
 1. `/config` opens from normal mode and returns to main mode on demand.
@@ -219,6 +262,8 @@
    - Acceptance:
      - Optional `currency` section exists with sync flag and explicit override list.
      - Deserialisation with missing `currency` section remains defaulted.
+   - Status:
+     - done
 
 2. Ticket 11 — currency tab edit actions
    - Command/area: `src/ui.rs`, `src/app.rs`
@@ -226,6 +271,9 @@
      - Manual add/remove of currencies is possible in override mode.
      - Sync toggle switches effective list source.
      - Currency list reorder or replace operations are deterministic.
+   - Status:
+     - part done: pair selection, sync toggle, and pin add exist through commands/picker
+     - remaining: pin removal, reorder, and richer in-app list editing
 
 3. Ticket 13 — map config model
    - Command/area: `src/config.rs`
@@ -233,6 +281,9 @@
      - `map.mode`, `map.focus_city_code`, `map.focus_country_codes` are serialised/deserialised.
      - Defaults preserve existing NZ-to-home route behaviour.
      - Invalid country/city focus values are rejected or normalised.
+   - Status:
+     - mostly done
+     - note: `focal_country_code` was also added as a practical default anchor
 
 4. Ticket 14 — map controls
    - Command/area: `src/ui.rs`, `src/app.rs`
@@ -241,6 +292,9 @@
      - Users can set focus city.
      - Users can add/remove focus countries.
      - Preview reflects the current mode and focus selections.
+   - Status:
+     - part done: map mode and focal country can be set through commands/picker and preview reflects mode
+     - remaining: focus city and multi-country add/remove controls
 
 5. Ticket 17 — map focus serialisation tests
    - Command/area: `src/config.rs`
@@ -248,12 +302,17 @@
      - Test roundtrip for defaults.
      - Test legacy config without map block.
      - Test malformed values yield safe fallback and non-fatal migration note.
+   - Status:
+     - part done: validation coverage exists for malformed focus values
+     - remaining: explicit serialisation roundtrip and legacy-map-block tests
 
 6. Ticket 19 — docs for advanced flow
    - Command/area: `CHANGELOG.md`, `README.md`
    - Acceptance:
      - Changelog entry for Track B launch includes currency override and map focus capabilities.
      - README includes examples of map mode and currency override usage.
+   - Status:
+     - in progress with this update
 
 #### Track B done criteria
 1. Currency override mode can be fully controlled in-app.

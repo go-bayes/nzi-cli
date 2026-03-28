@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.5
+- Added optional config-backed `currency` and `map` sections, with normalisation and validation on load/save.
+- Added canonical country and currency reference data for shared lookup, alias matching, map anchors, and picker search.
+- Currency pair defaults and cycling now derive from effective config rather than a fixed hard-coded pair list.
+- Added slash-command controls for focal country, currency pair, currency sync, currency pins, and map mode.
+- Added interactive search pickers for `/country`, `/focus`, `/currency`, and `/map`.
+- Focused map panel now uses configured map mode, and the UI shows the active map summary in the map title and footer.
+- README and planning documents updated to reflect the new config and picker workflow.
+- Version bumped to 0.2.5 in crate metadata and lockfile.
+
 ## 0.2.4
 - Swapped the default overseas home city from New York (NYC) to Boston (BOS) to preserve existing route and map functionality.
 - Added Boston coordinates and code mapping for weather and time-map rendering.
