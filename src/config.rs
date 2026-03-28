@@ -10,8 +10,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::reference::{
-    canonical_currency_code_for_country, country_by_code, is_valid_country_code,
-    is_valid_currency_code, lookup_country, normalise_country_code, normalise_currency_code,
+    canonical_currency_code_for_country, country_by_code, focal_country_code_for_currency,
+    is_valid_country_code, is_valid_currency_code, lookup_country, normalise_country_code,
+    normalise_currency_code,
 };
 
 /// city configuration with timezone and currency info
@@ -217,12 +218,18 @@ fn default_true() -> bool {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeConfig {
     #[serde(default)]
+    pub anchor_city_code: Option<String>,
+    #[serde(default)]
+    pub target_city_codes: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub city_codes: Vec<String>,
 }
 
 impl Default for TimeConfig {
     fn default() -> Self {
         Self {
+            anchor_city_code: None,
+            target_city_codes: Vec::new(),
             city_codes: Vec::new(),
         }
     }
@@ -269,8 +276,10 @@ impl Default for MapMode {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MapConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
     #[serde(default)]
     pub mode: MapMode,
     #[serde(default)]
@@ -279,6 +288,18 @@ pub struct MapConfig {
     pub focus_country_codes: Vec<String>,
     #[serde(default)]
     pub focal_country_code: Option<String>,
+}
+
+impl Default for MapConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            mode: MapMode::Route,
+            focus_city_code: None,
+            focus_country_codes: Vec::new(),
+            focal_country_code: None,
+        }
+    }
 }
 
 /// main configuration structure
@@ -461,6 +482,38 @@ impl Config {
         cities
     }
 
+    pub fn representative_cities(&self) -> Vec<&City> {
+        let mut seen = HashSet::new();
+        let mut representatives = Vec::new();
+
+        for city in self.all_cities() {
+            let key = format!(
+                "{}::{}",
+                city.country.trim().to_lowercase(),
+                city.timezone.trim().to_lowercase()
+            );
+            if seen.insert(key) {
+                representatives.push(city);
+            }
+        }
+
+        representatives
+    }
+
+    pub fn representative_city_for_country_code(&self, country_code: &str) -> Option<&City> {
+        let country_code = normalise_country_code(country_code);
+        self.representative_cities().into_iter().find(|city| {
+            lookup_country(&city.country)
+                .map(|country| country.code == country_code)
+                .unwrap_or(false)
+        })
+    }
+
+    pub fn representative_city_for_currency_code(&self, currency_code: &str) -> Option<&City> {
+        let country_code = focal_country_code_for_currency(currency_code)?;
+        self.representative_city_for_country_code(country_code)
+    }
+
     /// get all city codes for time conversion cycling
     pub fn all_city_codes(&self) -> Vec<String> {
         self.all_cities().iter().map(|c| c.code.clone()).collect()
@@ -470,51 +523,58 @@ impl Config {
         self.time.clone().unwrap_or_default()
     }
 
-    pub fn effective_time_city_codes(&self) -> Vec<String> {
+    pub fn effective_anchor_city_code(&self) -> String {
         let settings = self.effective_time_settings();
+
+        if let Some(anchor_city_code) = settings.anchor_city_code {
+            return anchor_city_code;
+        }
+
+        if let Some(first_legacy_code) = settings.city_codes.into_iter().next() {
+            return first_legacy_code;
+        }
+
+        self.current_city.code.clone()
+    }
+
+    pub fn effective_target_city_codes(&self) -> Vec<String> {
+        let settings = self.effective_time_settings();
+        let anchor = self.effective_anchor_city_code();
         let mut codes = Vec::new();
 
-        for code in settings.city_codes {
-            Self::push_unique_code(&mut codes, &code);
+        if !settings.target_city_codes.is_empty() {
+            for code in settings.target_city_codes {
+                if !code.eq_ignore_ascii_case(&anchor) {
+                    Self::push_unique_code(&mut codes, &code);
+                }
+            }
+        } else if !settings.city_codes.is_empty() {
+            for code in settings.city_codes.into_iter().skip(1) {
+                if !code.eq_ignore_ascii_case(&anchor) {
+                    Self::push_unique_code(&mut codes, &code);
+                }
+            }
         }
 
         if codes.is_empty() {
-            Self::push_unique_code(&mut codes, &self.current_city.code);
             Self::push_unique_code(&mut codes, &self.home_city.code);
             for city in &self.tracked_cities {
-                Self::push_unique_code(&mut codes, &city.code);
+                if !city.code.eq_ignore_ascii_case(&anchor) {
+                    Self::push_unique_code(&mut codes, &city.code);
+                }
             }
-        } else if !codes
-            .iter()
-            .any(|code| code.eq_ignore_ascii_case(&self.current_city.code))
-        {
-            codes.insert(0, self.current_city.code.clone());
         }
 
+        codes.retain(|code| !code.eq_ignore_ascii_case(&anchor));
         codes
     }
 
-    pub fn effective_time_cities(&self) -> Vec<&City> {
-        self.effective_time_city_codes()
-            .into_iter()
-            .filter_map(|code| {
-                self.all_cities()
-                    .into_iter()
-                    .find(|city| city.code.eq_ignore_ascii_case(&code))
-            })
-            .collect()
-    }
-
     pub fn effective_default_time_pair(&self) -> (String, String) {
-        let codes = self.effective_time_city_codes();
-        let from = codes
-            .first()
-            .cloned()
-            .unwrap_or_else(|| self.current_city.code.clone());
-        let to = codes
-            .iter()
-            .find(|code| !code.eq_ignore_ascii_case(&from))
-            .cloned()
+        let from = self.effective_anchor_city_code();
+        let to = self
+            .effective_target_city_codes()
+            .into_iter()
+            .next()
             .unwrap_or_else(|| self.home_city.code.clone());
         (from, to)
     }
@@ -635,6 +695,12 @@ impl Config {
         }
 
         if let Some(time) = &mut self.time {
+            updated |= Self::normalize_optional_code(&mut time.anchor_city_code, |value| {
+                value.trim().to_uppercase()
+            });
+            updated |= Self::normalize_code_list(&mut time.target_city_codes, |value| {
+                value.trim().to_uppercase()
+            });
             updated |= Self::normalize_code_list(&mut time.city_codes, |value| {
                 value.trim().to_uppercase()
             });
@@ -744,7 +810,11 @@ impl Config {
             }
         }
 
-        if settings.sync_with_cities || settings.country_codes.is_empty() {
+        for city in self.effective_target_cities() {
+            Self::push_unique_currency(&mut targets, &city.currency, &from_currency);
+        }
+
+        if settings.sync_with_cities && targets.is_empty() {
             for city in self.all_cities() {
                 Self::push_unique_currency(&mut targets, &city.currency, &from_currency);
             }
@@ -793,6 +863,25 @@ impl Config {
         }
 
         if let Some(time) = &self.time {
+            if let Some(anchor_city_code) = &time.anchor_city_code
+                && !self
+                    .all_city_codes()
+                    .iter()
+                    .any(|code| code.eq_ignore_ascii_case(anchor_city_code))
+            {
+                bail!("unknown time.anchor_city_code entry: {}", anchor_city_code);
+            }
+
+            for city_code in &time.target_city_codes {
+                if !self
+                    .all_city_codes()
+                    .iter()
+                    .any(|code| code.eq_ignore_ascii_case(city_code))
+                {
+                    bail!("unknown time.target_city_codes entry: {}", city_code);
+                }
+            }
+
             for city_code in &time.city_codes {
                 if !self
                     .all_city_codes()
@@ -851,6 +940,17 @@ impl Config {
         }
 
         Ok(())
+    }
+
+    pub fn effective_target_cities(&self) -> Vec<&City> {
+        self.effective_target_city_codes()
+            .into_iter()
+            .filter_map(|code| {
+                self.all_cities()
+                    .into_iter()
+                    .find(|city| city.code.eq_ignore_ascii_case(&code))
+            })
+            .collect()
     }
 }
 
@@ -964,18 +1064,45 @@ mod tests {
     }
 
     #[test]
-    fn derives_time_city_codes_from_explicit_list() {
+    fn derives_anchor_and_target_city_codes_from_explicit_list() {
         let mut config = Config::default();
         config.time = Some(TimeConfig {
+            anchor_city_code: Some("bos".to_string()),
+            target_city_codes: vec!["tyo".to_string()],
             city_codes: vec!["bos".to_string(), "tyo".to_string()],
         });
         config.normalize();
 
-        let codes = config.effective_time_city_codes();
+        assert_eq!(config.effective_anchor_city_code(), "BOS");
+        assert_eq!(
+            config.effective_target_city_codes(),
+            vec!["TYO".to_string()]
+        );
+    }
 
-        assert_eq!(codes.first().map(String::as_str), Some("WLG"));
-        assert!(codes.iter().any(|code| code == "BOS"));
-        assert!(codes.iter().any(|code| code == "TYO"));
+    #[test]
+    fn representative_cities_dedupe_country_timezone_pairs() {
+        let mut config = Config::default();
+        config.tracked_cities.push(City {
+            name: "New York".to_string(),
+            code: "NYC".to_string(),
+            country: "USA".to_string(),
+            timezone: "America/New_York".to_string(),
+            currency: "USD".to_string(),
+        });
+        config.tracked_cities.push(City {
+            name: "Denver".to_string(),
+            code: "DEN".to_string(),
+            country: "USA".to_string(),
+            timezone: "America/Denver".to_string(),
+            currency: "USD".to_string(),
+        });
+
+        let representatives = config.representative_cities();
+
+        assert!(representatives.iter().any(|city| city.code == "BOS"));
+        assert!(!representatives.iter().any(|city| city.code == "NYC"));
+        assert!(representatives.iter().any(|city| city.code == "DEN"));
     }
 
     #[test]
@@ -999,6 +1126,7 @@ mod tests {
     fn validates_map_focus_city_against_known_cities() {
         let mut config = Config::default();
         config.map = Some(MapConfig {
+            enabled: true,
             mode: MapMode::Cities,
             focus_city_code: Some("XXX".to_string()),
             focus_country_codes: Vec::new(),
@@ -1022,6 +1150,7 @@ mod tests {
         with_temp_config_dir(|| {
             let mut config = Config::default();
             config.map = Some(MapConfig {
+                enabled: true,
                 mode: MapMode::Countries,
                 focus_city_code: None,
                 focus_country_codes: vec!["GBR".to_string()],

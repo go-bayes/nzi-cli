@@ -16,9 +16,7 @@ use unicode_width::UnicodeWidthStr;
 use crate::app::{App, ConfigTab, Focus, InputMode};
 use crate::config::{City, MapMode};
 use crate::map::{NZ_CITIES, NzMapCanvas, Sparkles, WorldMapCanvas, WorldMarker};
-use crate::reference::{
-    canonical_currency_code_for_country, country_by_code, focal_country_code_for_currency,
-};
+use crate::reference::{country_by_code, focal_country_code_for_currency};
 use crate::theme::{Theme, catppuccin};
 use crate::timezone::CityTime;
 use crate::weather::{city_coords_by_code, city_coords_by_name};
@@ -89,39 +87,34 @@ fn draw_config_editor_overlay(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(block, popup_area);
 
     let tab_line = Line::from(
-        [
-            ConfigTab::Time,
-            ConfigTab::Currency,
-            ConfigTab::Map,
-            ConfigTab::Actions,
-        ]
-        .into_iter()
-        .flat_map(|tab| {
-            let is_active = tab == editor.tab;
-            [
-                Span::styled(
-                    format!(" {} ", tab.label()),
-                    Style::default()
-                        .fg(if is_active {
-                            catppuccin::BASE
-                        } else {
-                            catppuccin::OVERLAY1
-                        })
-                        .bg(if is_active {
-                            catppuccin::GREEN
-                        } else {
-                            catppuccin::SURFACE1
-                        })
-                        .add_modifier(if is_active {
-                            Modifier::BOLD
-                        } else {
-                            Modifier::empty()
-                        }),
-                ),
-                Span::raw(" "),
-            ]
-        })
-        .collect::<Vec<_>>(),
+        [ConfigTab::Places, ConfigTab::Map, ConfigTab::Actions]
+            .into_iter()
+            .flat_map(|tab| {
+                let is_active = tab == editor.tab;
+                [
+                    Span::styled(
+                        format!(" {} ", tab.label()),
+                        Style::default()
+                            .fg(if is_active {
+                                catppuccin::BASE
+                            } else {
+                                catppuccin::OVERLAY1
+                            })
+                            .bg(if is_active {
+                                catppuccin::GREEN
+                            } else {
+                                catppuccin::SURFACE1
+                            })
+                            .add_modifier(if is_active {
+                                Modifier::BOLD
+                            } else {
+                                Modifier::empty()
+                            }),
+                    ),
+                    Span::raw(" "),
+                ]
+            })
+            .collect::<Vec<_>>(),
     );
 
     let body_area = Layout::default()
@@ -136,8 +129,7 @@ fn draw_config_editor_overlay(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(Paragraph::new(tab_line), body_area[0]);
 
     let lines = match editor.tab {
-        ConfigTab::Time => config_editor_time_lines(app, config, editor.selected),
-        ConfigTab::Currency => config_editor_currency_lines(app, config, editor.selected),
+        ConfigTab::Places => config_editor_places_lines(app, config, editor.selected),
         ConfigTab::Map => config_editor_map_lines(config, editor.selected),
         ConfigTab::Actions => config_editor_action_lines(editor.selected),
     };
@@ -151,6 +143,8 @@ fn draw_config_editor_overlay(frame: &mut Frame, area: Rect, app: &App) {
         Span::styled(" tabs ", Theme::text_muted()),
         Span::styled("[j/k]", Style::default().fg(catppuccin::OVERLAY1)),
         Span::styled(" move ", Theme::text_muted()),
+        Span::styled("[J/K]", Style::default().fg(catppuccin::OVERLAY1)),
+        Span::styled(" reorder ", Theme::text_muted()),
         Span::styled("[Enter]", Style::default().fg(catppuccin::OVERLAY1)),
         Span::styled(" select ", Theme::text_muted()),
         Span::styled("[a]", Style::default().fg(catppuccin::OVERLAY1)),
@@ -163,23 +157,34 @@ fn draw_config_editor_overlay(frame: &mut Frame, area: Rect, app: &App) {
     frame.render_widget(Paragraph::new(footer), body_area[2]);
 }
 
-fn config_editor_time_lines(
+fn config_editor_places_lines(
     app: &App,
     config: &crate::config::Config,
     selected: usize,
 ) -> Vec<Line<'static>> {
+    let anchor_code = config.effective_anchor_city_code();
+    let anchor_city = config
+        .all_cities()
+        .into_iter()
+        .find(|city| city.code.eq_ignore_ascii_case(&anchor_code));
+    let anchor_label = anchor_city
+        .map(|city| format!("{} ({})", city.name, city.code))
+        .unwrap_or(anchor_code.clone());
+
     let mut lines = vec![
         Line::from(vec![Span::styled(
-            "Time cities",
+            "Places",
             Style::default()
                 .fg(catppuccin::PEACH)
                 .add_modifier(Modifier::BOLD),
         )]),
-        Line::from("The first city anchors the time converter. Remove with x."),
+        Line::from("Anchor and target cities drive both time and currency."),
+        Line::from("Pickers show one representative city per country and time zone."),
         Line::from(""),
+        config_editor_row(selected == 0, "Anchor city", &anchor_label),
     ];
 
-    let codes = config.effective_time_city_codes();
+    let codes = config.effective_target_city_codes();
     for (index, code) in codes.iter().enumerate() {
         let city = config
             .all_cities()
@@ -189,15 +194,35 @@ fn config_editor_time_lines(
             .map(|city| format!("{} ({})", city.name, city.code))
             .unwrap_or_else(|| code.clone());
         let detail = city
-            .map(|city| city.country.clone())
+            .map(|city| format!("{} · {}", city.country, city.currency))
             .unwrap_or_else(|| "Unknown".to_string());
-        lines.push(config_editor_row(selected == index, &label, &detail));
+        lines.push(config_editor_row(selected == index + 1, &label, &detail));
     }
 
     lines.push(config_editor_row(
-        selected == codes.len(),
-        "[+] Add time city",
+        selected == codes.len() + 1,
+        "[+] Add target city",
         "Open search",
+    ));
+    lines.push(config_editor_row(
+        selected == codes.len() + 2,
+        "[+] Add country",
+        "Resolve to representative city",
+    ));
+    lines.push(config_editor_row(
+        selected == codes.len() + 3,
+        "[+] Add currency",
+        "Resolve to representative city",
+    ));
+    lines.push(config_editor_row(
+        selected == codes.len() + 4,
+        "[reset] Anchor city",
+        "Restore built-in default",
+    ));
+    lines.push(config_editor_row(
+        selected == codes.len() + 5,
+        "[reset] Target cities",
+        "Restore built-in defaults",
     ));
 
     if app.has_config_draft() {
@@ -207,59 +232,6 @@ fn config_editor_time_lines(
             Style::default().fg(catppuccin::OVERLAY0),
         )]));
     }
-
-    lines
-}
-
-fn config_editor_currency_lines(
-    _app: &App,
-    config: &crate::config::Config,
-    selected: usize,
-) -> Vec<Line<'static>> {
-    let settings = config.effective_currency_settings();
-    let (from, to) = config.effective_default_currency_pair();
-    let mut lines = vec![
-        Line::from(vec![Span::styled(
-            "Currency countries",
-            Style::default()
-                .fg(catppuccin::PEACH)
-                .add_modifier(Modifier::BOLD),
-        )]),
-        Line::from("Countries drive the comparison list. Remove entries with x."),
-        Line::from(""),
-        config_editor_row(
-            selected == 0,
-            "Sync with cities",
-            if settings.sync_with_cities {
-                "On"
-            } else {
-                "Off"
-            },
-        ),
-        config_editor_row(
-            selected == 1,
-            "Default pair",
-            &format!("{} -> {}", from, to),
-        ),
-    ];
-
-    for (index, code) in settings.country_codes.iter().enumerate() {
-        let name = country_by_code(code)
-            .map(|country| country.name)
-            .unwrap_or("Unknown country");
-        let currency = canonical_currency_code_for_country(code).unwrap_or("n/a");
-        lines.push(config_editor_row(
-            selected == index + 2,
-            name,
-            &format!("{} · {}", code, currency),
-        ));
-    }
-
-    lines.push(config_editor_row(
-        selected == settings.country_codes.len() + 2,
-        "[+] Add currency country",
-        "Open search",
-    ));
 
     lines
 }
@@ -280,21 +252,26 @@ fn config_editor_map_lines(config: &crate::config::Config, selected: usize) -> V
                 .fg(catppuccin::PEACH)
                 .add_modifier(Modifier::BOLD),
         )]),
-        Line::from("Mode controls the focused map panel. Remove list entries with x."),
+        Line::from("Map routes are optional. Remove list entries with x."),
         Line::from(""),
-        config_editor_row(selected == 0, "Mode", map_mode_label(settings.mode)),
-        config_editor_row(selected == 1, "Focal country", &focal_country),
+        config_editor_row(
+            selected == 0,
+            "Map enabled",
+            if settings.enabled { "On" } else { "Off" },
+        ),
+        config_editor_row(selected == 1, "Mode", map_mode_label(settings.mode)),
+        config_editor_row(selected == 2, "Focal country", &focal_country),
     ];
 
     for (index, code) in settings.focus_country_codes.iter().enumerate() {
         let name = country_by_code(code)
             .map(|country| country.name)
             .unwrap_or("Unknown country");
-        lines.push(config_editor_row(selected == index + 2, name, code));
+        lines.push(config_editor_row(selected == index + 3, name, code));
     }
 
     lines.push(config_editor_row(
-        selected == settings.focus_country_codes.len() + 2,
+        selected == settings.focus_country_codes.len() + 3,
         "[+] Add focus country",
         "Open search",
     ));
@@ -855,6 +832,33 @@ fn styled_block(title: &str, focused: bool) -> Block<'static> {
 
 /// draw the new zealand map panel with canvas/braille rendering
 fn draw_map_panel(frame: &mut Frame, area: Rect, app: &App) {
+    let map_settings = app.config.effective_map_settings();
+    if !map_settings.enabled {
+        let block = styled_block("Map [disabled]", app.focus == Focus::Map);
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+        frame.render_widget(
+            Paragraph::new(vec![
+                Line::from(""),
+                Line::from(vec![Span::styled(
+                    "Map disabled in /config",
+                    Style::default()
+                        .fg(catppuccin::OVERLAY1)
+                        .add_modifier(Modifier::BOLD),
+                )]),
+                Line::from(""),
+                Line::from(vec![Span::styled(
+                    "Enable it in the Map tab to show routes again.",
+                    Style::default().fg(catppuccin::SUBTEXT0),
+                )]),
+            ])
+            .alignment(Alignment::Center)
+            .wrap(Wrap { trim: false }),
+            inner,
+        );
+        return;
+    }
+
     let context = app.active_map_focus();
 
     match context {
@@ -914,6 +918,15 @@ fn configured_world_map_markers(
     app: &App,
 ) -> (Option<WorldMarker>, Option<WorldMarker>, &'static str) {
     let map = app.config.effective_map_settings();
+    let anchor_city = app
+        .city_by_code(&app.config.effective_anchor_city_code())
+        .and_then(world_marker_for_city);
+    let first_target_city = app
+        .config
+        .effective_target_city_codes()
+        .first()
+        .and_then(|code| app.city_by_code(code))
+        .and_then(world_marker_for_city);
     let focal_country = map
         .focal_country_code
         .as_deref()
@@ -930,23 +943,15 @@ fn configured_world_map_markers(
         .and_then(world_marker_for_city);
 
     match map.mode {
-        MapMode::Route => (
-            world_marker_for_city(&app.config.current_city),
-            world_marker_for_city(&app.config.home_city),
-            "Route",
-        ),
-        MapMode::Cities => (
-            focus_city.or_else(|| world_marker_for_city(&app.config.current_city)),
-            world_marker_for_city(&app.config.home_city),
-            "Cities",
-        ),
+        MapMode::Route => (anchor_city, first_target_city, "Route"),
+        MapMode::Cities => (focus_city.or(anchor_city), first_target_city, "Cities"),
         MapMode::Countries => (
             focal_country,
-            extra_country.or_else(|| world_marker_for_city(&app.config.home_city)),
+            extra_country.or(first_target_city),
             "Countries",
         ),
         MapMode::Both => (
-            focus_city.or_else(|| world_marker_for_city(&app.config.current_city)),
+            focus_city.or(anchor_city),
             extra_country.or(focal_country),
             "Both",
         ),
@@ -955,6 +960,12 @@ fn configured_world_map_markers(
 
 fn configured_map_summary(app: &App) -> String {
     let map = app.config.effective_map_settings();
+    if !map.enabled {
+        return "disabled".to_string();
+    }
+
+    let anchor_code = app.config.effective_anchor_city_code();
+
     let focal_country = map
         .focal_country_code
         .as_deref()
@@ -969,20 +980,25 @@ fn configured_map_summary(app: &App) -> String {
     match map.mode {
         MapMode::Route => format!(
             "route {} → {}",
-            app.config.current_city.code, app.config.home_city.code
+            app.config.effective_anchor_city_code(),
+            app.config
+                .effective_target_city_codes()
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| app.config.home_city.code.clone())
         ),
         MapMode::Cities => format!(
             "cities {}",
             map.focus_city_code
                 .as_deref()
-                .unwrap_or(app.config.current_city.code.as_str())
+                .unwrap_or(anchor_code.as_str())
         ),
         MapMode::Countries => format!("countries {}", focal_country),
         MapMode::Both => format!(
             "both {} + {}",
             map.focus_city_code
                 .as_deref()
-                .unwrap_or(app.config.current_city.code.as_str()),
+                .unwrap_or(anchor_code.as_str()),
             focal_country
         ),
     }
@@ -1018,7 +1034,7 @@ fn world_map_markers(
     if primary.is_none() {
         primary = world_marker_for_city(&app.config.current_city);
     }
-    if secondary.is_none() {
+    if secondary.is_none() && app.config.effective_map_settings().enabled {
         secondary = world_marker_for_city(&app.config.home_city);
     }
 
