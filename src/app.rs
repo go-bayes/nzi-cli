@@ -2,12 +2,13 @@
 
 use std::time::{Duration, Instant};
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use chrono::Timelike;
 
-use crate::config::{City, Config};
+use crate::config::{City, Config, CurrencyConfig, MapConfig, MapMode};
 use crate::exchange::{CurrencyConverter, ExchangeService};
 use crate::map::NZ_CITIES;
+use crate::reference::{lookup_country, lookup_currency};
 use crate::timezone::{CityTime, TimeConverter, TimezoneService};
 use crate::weather::{CurrentWeather, WeatherService};
 
@@ -136,13 +137,202 @@ pub enum InputMode {
     EditingTime,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CommandAction {
+    ShowHelp,
+    EditConfig,
+    Quit,
+    Reload,
+    Refresh,
+    SetFocalCountry { code: String, name: String },
+    SetCurrencyPair { from_code: String, to_code: String },
+    SetCurrencySync { enabled: bool },
+    PinCurrency { code: String },
+    SetMapMode { mode: MapMode },
+}
+
+fn parse_command(input: &str) -> std::result::Result<CommandAction, String> {
+    let trimmed = input.trim();
+    let lowered = trimmed.to_lowercase();
+
+    match lowered.as_str() {
+        "/help" | "/h" => return Ok(CommandAction::ShowHelp),
+        "/edit" | "/e" => return Ok(CommandAction::EditConfig),
+        "/quit" | "/q" => return Ok(CommandAction::Quit),
+        "/reload" | "/r" => return Ok(CommandAction::Reload),
+        "/refresh" => return Ok(CommandAction::Refresh),
+        _ => {}
+    }
+
+    if let Some(rest) = trimmed.strip_prefix("/country ") {
+        return resolve_country_command(rest);
+    }
+
+    if let Some(rest) = trimmed.strip_prefix("/focus ") {
+        return resolve_country_command(rest);
+    }
+
+    if let Some(rest) = trimmed.strip_prefix("/currency ") {
+        return resolve_currency_command(rest);
+    }
+
+    if let Some(rest) = trimmed.strip_prefix("/map ") {
+        return resolve_map_command(rest);
+    }
+
+    Err(format!("unknown command: {}", trimmed))
+}
+
+fn resolve_country_command(query: &str) -> std::result::Result<CommandAction, String> {
+    let query = query.trim();
+    if query.is_empty() {
+        return Err("usage: /country <country>".to_string());
+    }
+
+    let country = lookup_country(query).ok_or_else(|| format!("country not found: {}", query))?;
+
+    Ok(CommandAction::SetFocalCountry {
+        code: country.code.to_string(),
+        name: country.name.to_string(),
+    })
+}
+
+fn resolve_currency_command(query: &str) -> std::result::Result<CommandAction, String> {
+    let query = query.trim();
+    if query.is_empty() {
+        return Err("usage: /currency <from> -> <to>".to_string());
+    }
+
+    let lowered = query.to_lowercase();
+    if let Some(sync_value) = lowered.strip_prefix("sync ") {
+        let enabled = match sync_value.trim() {
+            "on" | "true" => true,
+            "off" | "false" => false,
+            other => return Err(format!("invalid sync value: {}", other)),
+        };
+        return Ok(CommandAction::SetCurrencySync { enabled });
+    }
+
+    if let Some(pin_query) = query.strip_prefix("pin ") {
+        let pin_query = pin_query.trim();
+        if pin_query.is_empty() {
+            return Err("usage: /currency pin <currency>".to_string());
+        }
+        let currency = lookup_currency(pin_query)
+            .ok_or_else(|| format!("currency not found: {}", pin_query))?;
+        return Ok(CommandAction::PinCurrency {
+            code: currency.code.to_string(),
+        });
+    }
+
+    let (from_query, to_query) = if let Some((from, to)) = query.split_once("->") {
+        (from.trim(), to.trim())
+    } else {
+        let mut parts = query.split_whitespace();
+        let from = parts
+            .next()
+            .ok_or_else(|| "usage: /currency <from> <to>".to_string())?;
+        let to = parts
+            .next()
+            .ok_or_else(|| "usage: /currency <from> <to>".to_string())?;
+        if parts.next().is_some() {
+            return Err("use /currency <from> -> <to> for names with spaces".to_string());
+        }
+        (from, to)
+    };
+
+    if from_query.is_empty() || to_query.is_empty() {
+        return Err("usage: /currency <from> -> <to>".to_string());
+    }
+
+    let from_currency =
+        lookup_currency(from_query).ok_or_else(|| format!("currency not found: {}", from_query))?;
+    let to_currency =
+        lookup_currency(to_query).ok_or_else(|| format!("currency not found: {}", to_query))?;
+
+    Ok(CommandAction::SetCurrencyPair {
+        from_code: from_currency.code.to_string(),
+        to_code: to_currency.code.to_string(),
+    })
+}
+
+fn resolve_map_command(query: &str) -> std::result::Result<CommandAction, String> {
+    let mode = match query.trim().to_lowercase().as_str() {
+        "route" => MapMode::Route,
+        "cities" => MapMode::Cities,
+        "countries" => MapMode::Countries,
+        "both" => MapMode::Both,
+        "" => return Err("usage: /map <route|cities|countries|both>".to_string()),
+        other => return Err(format!("unknown map mode: {}", other)),
+    };
+
+    Ok(CommandAction::SetMapMode { mode })
+}
+
+fn apply_command_action_to_config(
+    config: &mut Config,
+    action: &CommandAction,
+) -> std::result::Result<Option<String>, String> {
+    match action {
+        CommandAction::SetFocalCountry { code, name } => {
+            let map = config.map.get_or_insert_with(MapConfig::default);
+            map.focal_country_code = Some(code.clone());
+            Ok(Some(format!("Focal country set to {} ({})", name, code)))
+        }
+        CommandAction::SetCurrencyPair { from_code, to_code } => {
+            let currency = config.currency.get_or_insert_with(CurrencyConfig::default);
+            currency.default_from = Some(from_code.clone());
+            currency.default_to = Some(to_code.clone());
+            Ok(Some(format!(
+                "Default currency pair set to {} -> {}",
+                from_code, to_code
+            )))
+        }
+        CommandAction::SetCurrencySync { enabled } => {
+            let currency = config.currency.get_or_insert_with(CurrencyConfig::default);
+            currency.sync_with_cities = *enabled;
+            Ok(Some(format!(
+                "Currency sync with cities {}",
+                if *enabled { "enabled" } else { "disabled" }
+            )))
+        }
+        CommandAction::PinCurrency { code } => {
+            let currency = config.currency.get_or_insert_with(CurrencyConfig::default);
+            if !currency.pinned_codes.iter().any(|value| value == code) {
+                currency.pinned_codes.push(code.clone());
+            }
+            Ok(Some(format!("Pinned currency {}", code)))
+        }
+        CommandAction::SetMapMode { mode } => {
+            let map = config.map.get_or_insert_with(MapConfig::default);
+            map.mode = *mode;
+            Ok(Some(format!(
+                "Map mode set to {}",
+                match mode {
+                    MapMode::Route => "route",
+                    MapMode::Cities => "cities",
+                    MapMode::Countries => "countries",
+                    MapMode::Both => "both",
+                }
+            )))
+        }
+        CommandAction::ShowHelp
+        | CommandAction::EditConfig
+        | CommandAction::Quit
+        | CommandAction::Reload
+        | CommandAction::Refresh => Ok(None),
+    }
+}
+
 impl App {
     pub fn new(config: Config) -> Self {
         let tick_rate = Duration::from_millis(config.display.animation_speed_ms);
 
         // initialise converters with config values
+        let currency_pairs = config.effective_currency_pairs();
+        let (from_currency, to_currency) = config.effective_default_currency_pair();
         let currency_converter =
-            CurrencyConverter::new(&config.current_city.currency, &config.home_city.currency);
+            CurrencyConverter::new_with_pairs(&from_currency, &to_currency, currency_pairs);
 
         let time_converter = TimeConverter::new(&config.current_city.code, &config.home_city.code);
 
@@ -487,28 +677,39 @@ impl App {
     }
 
     fn execute_command(&mut self) {
-        let cmd = self.command_buffer.trim().to_lowercase();
-        match cmd.as_str() {
-            "/help" | "/h" => {
+        let raw_command = self.command_buffer.trim();
+
+        let action = match parse_command(raw_command) {
+            Ok(action) => action,
+            Err(message) => {
+                self.set_status(message);
+                return;
+            }
+        };
+
+        match action {
+            CommandAction::ShowHelp => {
                 self.show_help = true;
             }
-            "/edit" | "/e" => {
+            CommandAction::EditConfig => {
                 self.edit_config_requested = true;
             }
-            "/quit" | "/q" => {
+            CommandAction::Quit => {
                 self.running = false;
             }
-            "/reload" | "/r" => {
+            CommandAction::Reload => {
                 if let Err(e) = self.reload_config() {
                     self.set_status(format!("Failed to reload config: {}", e));
                 }
             }
-            "/refresh" => {
+            CommandAction::Refresh => {
                 self.weather_refresh_pending = true;
                 self.set_status("Refreshing...".to_string());
             }
-            _ => {
-                self.set_status(format!("Unknown command: {}", self.command_buffer));
+            other => {
+                if let Err(err) = self.apply_config_command(other) {
+                    self.set_status(err.to_string());
+                }
             }
         }
     }
@@ -626,27 +827,7 @@ impl App {
     /// reload config from disk and refresh dependent state
     pub fn reload_config(&mut self) -> Result<()> {
         self.config = Config::load()?;
-        // reset converters to match new config
-        self.currency_converter = CurrencyConverter::new(
-            &self.config.current_city.currency,
-            &self.config.home_city.currency,
-        );
-        self.time_converter =
-            TimeConverter::new(&self.config.current_city.code, &self.config.home_city.code);
-
-        // keep weather focused on the configured NZ city when possible
-        self.weather_city_index = NZ_CITIES
-            .iter()
-            .position(|c| c.code == self.config.current_city.code)
-            .unwrap_or(0);
-        self.current_weather = None;
-        self.weather_error = None;
-        self.weather_expanded = true;
-        self.weather_refresh_pending = true;
-
-        // refresh time caches to reflect the new config immediately
-        self.update_times();
-        self.update_time_conversion();
+        self.sync_runtime_to_config();
 
         self.set_status("Config reloaded".to_string());
         Ok(())
@@ -687,5 +868,120 @@ impl App {
         } else {
             &self.time_converter.to_city_code
         }
+    }
+
+    pub fn active_map_focus(&self) -> Focus {
+        if self.focus == Focus::Map {
+            Focus::Map
+        } else {
+            self.focus
+        }
+    }
+
+    fn apply_config_command(&mut self, action: CommandAction) -> Result<()> {
+        let status = apply_command_action_to_config(&mut self.config, &action)
+            .map_err(|message| anyhow!(message))?;
+        self.config.save()?;
+        self.sync_runtime_to_config();
+
+        if let Some(status) = status {
+            self.set_status(status);
+        }
+
+        Ok(())
+    }
+
+    fn sync_runtime_to_config(&mut self) {
+        let currency_pairs = self.config.effective_currency_pairs();
+        let (from_currency, to_currency) = self.config.effective_default_currency_pair();
+        self.currency_converter =
+            CurrencyConverter::new_with_pairs(&from_currency, &to_currency, currency_pairs);
+        self.time_converter =
+            TimeConverter::new(&self.config.current_city.code, &self.config.home_city.code);
+
+        self.weather_city_index = NZ_CITIES
+            .iter()
+            .position(|c| c.code == self.config.current_city.code)
+            .unwrap_or(0);
+        self.current_weather = None;
+        self.weather_error = None;
+        self.weather_expanded = true;
+        self.weather_refresh_pending = true;
+
+        self.update_times();
+        self.update_time_conversion();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_country_alias_command() {
+        let action = parse_command("/country uk").expect("command should parse");
+
+        assert_eq!(
+            action,
+            CommandAction::SetFocalCountry {
+                code: "GBR".to_string(),
+                name: "United Kingdom".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn parses_currency_pair_with_arrow_syntax() {
+        let action =
+            parse_command("/currency new zealand dollar -> yen").expect("command should parse");
+
+        assert_eq!(
+            action,
+            CommandAction::SetCurrencyPair {
+                from_code: "NZD".to_string(),
+                to_code: "JPY".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn applies_currency_pin_command_to_config() {
+        let mut config = Config::default();
+        let action = parse_command("/currency pin cad").expect("command should parse");
+
+        let status = apply_command_action_to_config(&mut config, &action)
+            .expect("config mutation should succeed");
+
+        assert_eq!(status.as_deref(), Some("Pinned currency CAD"));
+        assert_eq!(
+            config
+                .currency
+                .as_ref()
+                .map(|currency| currency.pinned_codes.clone()),
+            Some(vec!["CAD".to_string()])
+        );
+    }
+
+    #[test]
+    fn applies_map_mode_command_to_config() {
+        let mut config = Config::default();
+        let action = parse_command("/map countries").expect("command should parse");
+
+        apply_command_action_to_config(&mut config, &action)
+            .expect("config mutation should succeed");
+
+        assert_eq!(
+            config.map.as_ref().map(|map| map.mode),
+            Some(MapMode::Countries)
+        );
+    }
+
+    #[test]
+    fn map_focus_uses_configured_map_when_panel_is_focused() {
+        let mut app = App::new(Config::default());
+        app.focus = Focus::Map;
+        app.map_context = Focus::Weather;
+
+        assert_eq!(app.active_map_focus(), Focus::Map);
     }
 }

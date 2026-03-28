@@ -14,8 +14,9 @@ use ratatui::{
 use unicode_width::UnicodeWidthStr;
 
 use crate::app::{App, Focus, InputMode};
-use crate::config::City;
+use crate::config::{City, MapMode};
 use crate::map::{NZ_CITIES, NzMapCanvas, Sparkles, WorldMapCanvas, WorldMarker};
+use crate::reference::{country_by_code, focal_country_code_for_currency};
 use crate::theme::{Theme, catppuccin};
 use crate::timezone::CityTime;
 use crate::weather::{city_coords_by_code, city_coords_by_name};
@@ -52,7 +53,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
 fn draw_help_overlay(frame: &mut Frame, area: Rect) {
     // centre the help box
     let help_width = 50.min(area.width.saturating_sub(4));
-    let help_height = 22.min(area.height.saturating_sub(4));
+    let help_height = 28.min(area.height.saturating_sub(4));
     let x = (area.width.saturating_sub(help_width)) / 2;
     let y = (area.height.saturating_sub(help_height)) / 2;
     let help_area = Rect::new(x, y, help_width, help_height);
@@ -182,6 +183,39 @@ fn draw_help_overlay(frame: &mut Frame, area: Rect) {
                 Style::default().fg(catppuccin::TEXT),
             ),
         ]),
+        Line::from(vec![
+            Span::styled("  /country  ", Style::default().fg(catppuccin::SAPPHIRE)),
+            Span::styled(
+                "Set focal country by code or name",
+                Style::default().fg(catppuccin::TEXT),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("  /currency ", Style::default().fg(catppuccin::SAPPHIRE)),
+            Span::styled(
+                "Set pair, pin code, or sync on/off",
+                Style::default().fg(catppuccin::TEXT),
+            ),
+        ]),
+        Line::from(vec![
+            Span::styled("  /map      ", Style::default().fg(catppuccin::SAPPHIRE)),
+            Span::styled(
+                "Set map mode route|cities|countries|both",
+                Style::default().fg(catppuccin::TEXT),
+            ),
+        ]),
+        Line::from(""),
+        Line::from(vec![Span::styled(
+            "Examples",
+            Style::default()
+                .fg(catppuccin::PEACH)
+                .add_modifier(Modifier::BOLD),
+        )]),
+        Line::from("  /country united kingdom"),
+        Line::from("  /currency nzd -> jpy"),
+        Line::from("  /currency pin cad"),
+        Line::from("  /currency sync off"),
+        Line::from("  /map countries"),
     ];
 
     let para = Paragraph::new(help_text);
@@ -364,11 +398,7 @@ fn styled_block(title: &str, focused: bool) -> Block<'static> {
 
 /// draw the new zealand map panel with canvas/braille rendering
 fn draw_map_panel(frame: &mut Frame, area: Rect, app: &App) {
-    let context = if app.focus == Focus::Map {
-        app.map_context
-    } else {
-        app.focus
-    };
+    let context = app.active_map_focus();
 
     match context {
         Focus::Weather => {
@@ -397,320 +427,8 @@ fn draw_map_panel(frame: &mut Frame, area: Rect, app: &App) {
     }
 }
 
-struct CountryMarker {
-    #[allow(dead_code)]
-    name: &'static str,
-    code: &'static str,
-    lat: f64,
-    lon: f64,
-}
-
-const COUNTRY_MARKERS: &[CountryMarker] = &[
-    CountryMarker {
-        name: "new zealand",
-        code: "NZL",
-        lat: -41.0,
-        lon: 174.0,
-    },
-    CountryMarker {
-        name: "australia",
-        code: "AUS",
-        lat: -25.0,
-        lon: 133.0,
-    },
-    CountryMarker {
-        name: "usa",
-        code: "USA",
-        lat: 39.5,
-        lon: -98.35,
-    },
-    CountryMarker {
-        name: "united states",
-        code: "USA",
-        lat: 39.5,
-        lon: -98.35,
-    },
-    CountryMarker {
-        name: "canada",
-        code: "CAN",
-        lat: 56.1,
-        lon: -106.3,
-    },
-    CountryMarker {
-        name: "mexico",
-        code: "MEX",
-        lat: 23.6,
-        lon: -102.6,
-    },
-    CountryMarker {
-        name: "brazil",
-        code: "BRA",
-        lat: -10.8,
-        lon: -52.9,
-    },
-    CountryMarker {
-        name: "argentina",
-        code: "ARG",
-        lat: -38.4,
-        lon: -63.6,
-    },
-    CountryMarker {
-        name: "chile",
-        code: "CHL",
-        lat: -35.7,
-        lon: -71.5,
-    },
-    CountryMarker {
-        name: "peru",
-        code: "PER",
-        lat: -9.2,
-        lon: -75.0,
-    },
-    CountryMarker {
-        name: "colombia",
-        code: "COL",
-        lat: 4.6,
-        lon: -74.1,
-    },
-    CountryMarker {
-        name: "uk",
-        code: "GBR",
-        lat: 54.0,
-        lon: -2.0,
-    },
-    CountryMarker {
-        name: "united kingdom",
-        code: "GBR",
-        lat: 54.0,
-        lon: -2.0,
-    },
-    CountryMarker {
-        name: "ireland",
-        code: "IRL",
-        lat: 53.1,
-        lon: -8.0,
-    },
-    CountryMarker {
-        name: "france",
-        code: "FRA",
-        lat: 46.2,
-        lon: 2.2,
-    },
-    CountryMarker {
-        name: "germany",
-        code: "DEU",
-        lat: 51.1657,
-        lon: 10.4515,
-    },
-    CountryMarker {
-        name: "germany",
-        code: "DEU",
-        lat: 51.2,
-        lon: 10.5,
-    },
-    CountryMarker {
-        name: "netherlands",
-        code: "NLD",
-        lat: 52.1,
-        lon: 5.3,
-    },
-    CountryMarker {
-        name: "belgium",
-        code: "BEL",
-        lat: 50.5,
-        lon: 4.5,
-    },
-    CountryMarker {
-        name: "switzerland",
-        code: "CHE",
-        lat: 46.8,
-        lon: 8.2,
-    },
-    CountryMarker {
-        name: "austria",
-        code: "AUT",
-        lat: 47.5,
-        lon: 14.5,
-    },
-    CountryMarker {
-        name: "italy",
-        code: "ITA",
-        lat: 41.9,
-        lon: 12.6,
-    },
-    CountryMarker {
-        name: "spain",
-        code: "ESP",
-        lat: 40.4,
-        lon: -3.7,
-    },
-    CountryMarker {
-        name: "portugal",
-        code: "PRT",
-        lat: 39.7,
-        lon: -8.0,
-    },
-    CountryMarker {
-        name: "greece",
-        code: "GRC",
-        lat: 39.1,
-        lon: 22.9,
-    },
-    CountryMarker {
-        name: "poland",
-        code: "POL",
-        lat: 52.0,
-        lon: 19.1,
-    },
-    CountryMarker {
-        name: "czech",
-        code: "CZE",
-        lat: 49.8,
-        lon: 15.5,
-    },
-    CountryMarker {
-        name: "sweden",
-        code: "SWE",
-        lat: 62.0,
-        lon: 15.0,
-    },
-    CountryMarker {
-        name: "norway",
-        code: "NOR",
-        lat: 64.5,
-        lon: 11.5,
-    },
-    CountryMarker {
-        name: "finland",
-        code: "FIN",
-        lat: 64.0,
-        lon: 26.0,
-    },
-    CountryMarker {
-        name: "denmark",
-        code: "DNK",
-        lat: 56.0,
-        lon: 10.0,
-    },
-    CountryMarker {
-        name: "russia",
-        code: "RUS",
-        lat: 61.5,
-        lon: 105.0,
-    },
-    CountryMarker {
-        name: "ukraine",
-        code: "UKR",
-        lat: 49.0,
-        lon: 32.0,
-    },
-    CountryMarker {
-        name: "turkey",
-        code: "TUR",
-        lat: 39.0,
-        lon: 35.0,
-    },
-    CountryMarker {
-        name: "egypt",
-        code: "EGY",
-        lat: 26.8,
-        lon: 30.8,
-    },
-    CountryMarker {
-        name: "nigeria",
-        code: "NGA",
-        lat: 9.1,
-        lon: 8.7,
-    },
-    CountryMarker {
-        name: "kenya",
-        code: "KEN",
-        lat: 0.2,
-        lon: 37.9,
-    },
-    CountryMarker {
-        name: "ethiopia",
-        code: "ETH",
-        lat: 9.1,
-        lon: 40.5,
-    },
-    CountryMarker {
-        name: "south africa",
-        code: "ZAF",
-        lat: -29.0,
-        lon: 24.0,
-    },
-    CountryMarker {
-        name: "saudi",
-        code: "SAU",
-        lat: 23.9,
-        lon: 45.1,
-    },
-    CountryMarker {
-        name: "united arab emirates",
-        code: "ARE",
-        lat: 23.4,
-        lon: 53.8,
-    },
-    CountryMarker {
-        name: "qatar",
-        code: "QAT",
-        lat: 25.3,
-        lon: 51.2,
-    },
-    CountryMarker {
-        name: "india",
-        code: "IND",
-        lat: 21.0,
-        lon: 78.0,
-    },
-    CountryMarker {
-        name: "bangladesh",
-        code: "BGD",
-        lat: 23.685,
-        lon: 90.3563,
-    },
-    CountryMarker {
-        name: "china",
-        code: "CHN",
-        lat: 35.9,
-        lon: 104.2,
-    },
-    CountryMarker {
-        name: "japan",
-        code: "JPN",
-        lat: 36.2,
-        lon: 138.2,
-    },
-    CountryMarker {
-        name: "south korea",
-        code: "KOR",
-        lat: 36.5,
-        lon: 127.9,
-    },
-    CountryMarker {
-        name: "singapore",
-        code: "SGP",
-        lat: 1.3521,
-        lon: 103.8198,
-    },
-    CountryMarker {
-        name: "malaysia",
-        code: "MYS",
-        lat: 4.2105,
-        lon: 101.9758,
-    },
-    CountryMarker {
-        name: "indonesia",
-        code: "IDN",
-        lat: -2.5,
-        lon: 117.2,
-    },
-];
-
 fn world_marker_for_city(city: &City) -> Option<WorldMarker> {
-    let (lat, lon) = city_coords_by_code(&city.code)
-        .or_else(|| city_coords_by_name(&city.name))?;
+    let (lat, lon) = city_coords_by_code(&city.code).or_else(|| city_coords_by_name(&city.name))?;
     Some(WorldMarker {
         label: city.code.clone(),
         lat,
@@ -719,38 +437,59 @@ fn world_marker_for_city(city: &City) -> Option<WorldMarker> {
 }
 
 fn world_marker_for_country_code(code: &str) -> Option<WorldMarker> {
-    let code_upper = code.to_uppercase();
-    COUNTRY_MARKERS
-        .iter()
-        .find(|c| c.code.eq_ignore_ascii_case(code_upper.as_str()))
-        .map(|c| WorldMarker {
-            label: c.code.to_string(),
-            lat: c.lat,
-            lon: c.lon,
-        })
-}
-
-fn currency_to_country_code(currency: &str) -> Option<&'static str> {
-    let currency_upper = currency.to_uppercase();
-    match currency_upper.as_str() {
-        "NZD" => Some("NZL"),
-        "AUD" => Some("AUS"),
-        "USD" => Some("USA"),
-        "EUR" => Some("DEU"),
-        "GBP" => Some("GBR"),
-        "JPY" => Some("JPN"),
-        "MYR" => Some("MYS"),
-        "BRL" => Some("BRA"),
-        "ETB" => Some("ETH"),
-        "BDT" => Some("BGD"),
-        "CNY" => Some("CHN"),
-        _ => None,
-    }
+    country_by_code(code).map(|country| WorldMarker {
+        label: country.code.to_string(),
+        lat: country.lat,
+        lon: country.lon,
+    })
 }
 
 fn world_marker_for_currency(currency: &str) -> Option<WorldMarker> {
-    let country_code = currency_to_country_code(currency)?;
+    let country_code = focal_country_code_for_currency(currency)?;
     world_marker_for_country_code(country_code)
+}
+
+fn configured_world_map_markers(
+    app: &App,
+) -> (Option<WorldMarker>, Option<WorldMarker>, &'static str) {
+    let map = app.config.effective_map_settings();
+    let focal_country = map
+        .focal_country_code
+        .as_deref()
+        .and_then(world_marker_for_country_code);
+    let extra_country = map
+        .focus_country_codes
+        .first()
+        .map(String::as_str)
+        .and_then(world_marker_for_country_code);
+    let focus_city = map
+        .focus_city_code
+        .as_deref()
+        .and_then(|code| app.city_by_code(code))
+        .and_then(world_marker_for_city);
+
+    match map.mode {
+        MapMode::Route => (
+            world_marker_for_city(&app.config.current_city),
+            world_marker_for_city(&app.config.home_city),
+            "Route",
+        ),
+        MapMode::Cities => (
+            focus_city.or_else(|| world_marker_for_city(&app.config.current_city)),
+            world_marker_for_city(&app.config.home_city),
+            "Cities",
+        ),
+        MapMode::Countries => (
+            focal_country,
+            extra_country.or_else(|| world_marker_for_city(&app.config.home_city)),
+            "Countries",
+        ),
+        MapMode::Both => (
+            focus_city.or_else(|| world_marker_for_city(&app.config.current_city)),
+            extra_country.or(focal_country),
+            "Both",
+        ),
+    }
 }
 
 fn world_map_markers(
@@ -763,13 +502,14 @@ fn world_map_markers(
             world_marker_for_currency(&app.currency_converter.to_currency),
             "Currency",
         ),
-        Focus::TimeConvert | Focus::Map => (
+        Focus::TimeConvert => (
             app.city_by_code(&app.time_converter.from_city_code)
                 .and_then(world_marker_for_city),
             app.city_by_code(&app.time_converter.to_city_code)
                 .and_then(world_marker_for_city),
             "Time",
         ),
+        Focus::Map => configured_world_map_markers(app),
         Focus::Weather => (
             app.city_by_code(&app.time_converter.from_city_code)
                 .and_then(world_marker_for_city),
@@ -1672,10 +1412,7 @@ fn draw_time_panel(frame: &mut Frame, area: Rect, app: &App) {
             format!("{} → ", from_name.chars().take(6).collect::<String>()),
             Style::default().fg(catppuccin::SUBTEXT1),
         ),
-        Span::styled(
-            format!("{} ", converter.format_result_time()),
-            result_style,
-        ),
+        Span::styled(format!("{} ", converter.format_result_time()), result_style),
         Span::styled(
             to_name.chars().take(6).collect::<String>(),
             Style::default().fg(catppuccin::SUBTEXT1),
@@ -1856,10 +1593,7 @@ fn draw_time_converter_compact(frame: &mut Frame, area: Rect, app: &App) {
             Style::default().fg(catppuccin::SUBTEXT1),
         ),
         Span::styled(" → ", Style::default().fg(catppuccin::OVERLAY1)),
-        Span::styled(
-            format!("{} ", converter.format_result_time()),
-            result_style,
-        ),
+        Span::styled(format!("{} ", converter.format_result_time()), result_style),
         Span::styled(
             to_name.chars().take(8).collect::<String>(),
             Style::default().fg(catppuccin::SUBTEXT1),
@@ -2039,7 +1773,10 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &App) {
         Focus::Currency => {
             let converter = &app.currency_converter;
             let rate_line = if let Some(rate) = converter.rate {
-                format!("1 {} = {:.4} {}", converter.from_currency, rate, converter.to_currency)
+                format!(
+                    "1 {} = {:.4} {}",
+                    converter.from_currency, rate, converter.to_currency
+                )
             } else {
                 format!(
                     "{} → {} (rate pending)",

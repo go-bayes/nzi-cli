@@ -1,7 +1,7 @@
 //! exchange rate fetching and conversion module
 //! supports any currency pair with caching
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -118,7 +118,11 @@ impl ExchangeService {
         let reverse_key = Self::cache_key(&to_upper, &from_upper);
         if let Some(cached) = self.cache.get(&reverse_key) {
             if cached.rate == 0.0 {
-                bail!("cached exchange rate is zero for {} -> {}", to_upper, from_upper);
+                bail!(
+                    "cached exchange rate is zero for {} -> {}",
+                    to_upper,
+                    from_upper
+                );
             }
             return Ok(1.0 / cached.rate);
         }
@@ -133,20 +137,6 @@ impl Default for ExchangeService {
     }
 }
 
-/// available currency pairs (NZD to world currencies)
-pub const CURRENCY_PAIRS: &[(&str, &str)] = &[
-    ("NZD", "USD"),
-    ("NZD", "EUR"),
-    ("NZD", "GBP"),
-    ("NZD", "AUD"),
-    ("NZD", "MYR"),
-    ("NZD", "JPY"),
-    ("NZD", "BRL"),
-    ("NZD", "ETB"),
-    ("NZD", "BDT"),
-    ("NZD", "CNY"),
-];
-
 /// currency converter widget state
 #[derive(Debug, Clone)]
 pub struct CurrencyConverter {
@@ -159,10 +149,23 @@ pub struct CurrencyConverter {
     pub editing: bool,
     pub pair_index: usize,
     pub needs_refresh: bool,
+    pub available_pairs: Vec<(String, String)>,
 }
 
 impl Default for CurrencyConverter {
     fn default() -> Self {
+        let available_pairs = vec![
+            ("NZD".to_string(), "USD".to_string()),
+            ("NZD".to_string(), "EUR".to_string()),
+            ("NZD".to_string(), "GBP".to_string()),
+            ("NZD".to_string(), "AUD".to_string()),
+            ("NZD".to_string(), "MYR".to_string()),
+            ("NZD".to_string(), "JPY".to_string()),
+            ("NZD".to_string(), "BRL".to_string()),
+            ("NZD".to_string(), "ETB".to_string()),
+            ("NZD".to_string(), "BDT".to_string()),
+            ("NZD".to_string(), "CNY".to_string()),
+        ];
         Self {
             from_currency: "NZD".to_string(),
             to_currency: "USD".to_string(),
@@ -173,15 +176,26 @@ impl Default for CurrencyConverter {
             editing: false,
             pair_index: 0,
             needs_refresh: true,
+            available_pairs,
         }
     }
 }
 
 impl CurrencyConverter {
-    pub fn new(from: &str, to: &str) -> Self {
+    pub fn new_with_pairs(from: &str, to: &str, available_pairs: Vec<(String, String)>) -> Self {
+        let from_currency = from.to_uppercase();
+        let to_currency = to.to_uppercase();
+        let available_pairs = Self::normalise_pairs(available_pairs, &from_currency, &to_currency);
+        let pair_index = available_pairs
+            .iter()
+            .position(|(pair_from, pair_to)| pair_from == &from_currency && pair_to == &to_currency)
+            .unwrap_or(0);
+
         Self {
-            from_currency: from.to_uppercase(),
-            to_currency: to.to_uppercase(),
+            from_currency,
+            to_currency,
+            pair_index,
+            available_pairs,
             needs_refresh: true,
             ..Default::default()
         }
@@ -238,10 +252,14 @@ impl CurrencyConverter {
 
     /// cycle to the next currency pair
     pub fn cycle_pair(&mut self) {
-        self.pair_index = (self.pair_index + 1) % CURRENCY_PAIRS.len();
-        let (from, to) = CURRENCY_PAIRS[self.pair_index];
-        self.from_currency = from.to_string();
-        self.to_currency = to.to_string();
+        if self.available_pairs.is_empty() {
+            return;
+        }
+
+        self.pair_index = (self.pair_index + 1) % self.available_pairs.len();
+        let (from, to) = &self.available_pairs[self.pair_index];
+        self.from_currency = from.clone();
+        self.to_currency = to.clone();
         self.rate = None;
         self.to_amount = 0.0;
         self.needs_refresh = true;
@@ -256,5 +274,34 @@ impl CurrencyConverter {
     /// clear the refresh flag
     pub fn clear_refresh_flag(&mut self) {
         self.needs_refresh = false;
+    }
+
+    fn normalise_pairs(
+        available_pairs: Vec<(String, String)>,
+        default_from: &str,
+        default_to: &str,
+    ) -> Vec<(String, String)> {
+        let mut pairs = Vec::new();
+
+        for (from, to) in available_pairs {
+            let from = from.trim().to_uppercase();
+            let to = to.trim().to_uppercase();
+
+            if from.is_empty() || to.is_empty() {
+                continue;
+            }
+
+            let pair = (from, to);
+            if !pairs.contains(&pair) {
+                pairs.push(pair);
+            }
+        }
+
+        let default_pair = (default_from.to_string(), default_to.to_string());
+        if !pairs.contains(&default_pair) {
+            pairs.insert(0, default_pair);
+        }
+
+        pairs
     }
 }

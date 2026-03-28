@@ -15,6 +15,7 @@ mod app;
 mod config;
 mod exchange;
 mod map;
+mod reference;
 mod theme;
 mod timezone;
 mod ui;
