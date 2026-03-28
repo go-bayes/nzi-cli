@@ -413,7 +413,11 @@ fn draw_map_panel(frame: &mut Frame, area: Rect, app: &App) {
         }
         Focus::TimeConvert | Focus::Currency | Focus::Map => {
             let (primary, secondary, label) = world_map_markers(app, context);
-            let title = format!("World map ({})", label);
+            let title = if context == Focus::Map {
+                format!("World map ({})", configured_map_summary(app))
+            } else {
+                format!("World map ({})", label)
+            };
             frame.render_widget(
                 WorldMapCanvas::new()
                     .primary(primary)
@@ -488,6 +492,41 @@ fn configured_world_map_markers(
             focus_city.or_else(|| world_marker_for_city(&app.config.current_city)),
             extra_country.or(focal_country),
             "Both",
+        ),
+    }
+}
+
+fn configured_map_summary(app: &App) -> String {
+    let map = app.config.effective_map_settings();
+    let focal_country = map
+        .focal_country_code
+        .as_deref()
+        .map(|code| {
+            country_by_code(code)
+                .map(|country| country.code)
+                .unwrap_or(code)
+                .to_string()
+        })
+        .unwrap_or_else(|| "?".to_string());
+
+    match map.mode {
+        MapMode::Route => format!(
+            "route {} → {}",
+            app.config.current_city.code, app.config.home_city.code
+        ),
+        MapMode::Cities => format!(
+            "cities {}",
+            map.focus_city_code
+                .as_deref()
+                .unwrap_or(app.config.current_city.code.as_str())
+        ),
+        MapMode::Countries => format!("countries {}", focal_country),
+        MapMode::Both => format!(
+            "both {} + {}",
+            map.focus_city_code
+                .as_deref()
+                .unwrap_or(app.config.current_city.code.as_str()),
+            focal_country
         ),
     }
 }
@@ -1802,6 +1841,13 @@ fn draw_footer(frame: &mut Frame, area: Rect, app: &App) {
                 ),
             ])
         }
+        Focus::Map => Line::from(vec![
+            Span::styled(" Map: ", Style::default().fg(catppuccin::PEACH)),
+            Span::styled(
+                configured_map_summary(app),
+                Style::default().fg(catppuccin::OVERLAY1),
+            ),
+        ]),
         _ => {
             if let Some((message, _)) = &app.status_message {
                 Line::from(vec![
