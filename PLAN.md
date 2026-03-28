@@ -34,22 +34,21 @@
 2. Snapshot save and restore already exist.
 3. A visual `/config` editor already exists with `Places`, `Map`, and `Actions` tabs.
 4. Search-backed pickers already exist for country, currency, and map selections.
-5. The current codebase still reflects an older, more general data layer:
+5. The current codebase still carries a few compatibility paths from the older model:
    - `time.city_codes`
    - `currency.country_codes`
-   - a partial hand-maintained country and currency registry in `reference.rs`
-6. That model works, but it is no longer the desired long-term shape.
+6. Reference data now comes from checked-in source files in `data/` and is generated at build time through `build.rs`.
 7. The editor now has a `Places` tab with anchor-city selection, target-city add/remove/reorder, country and currency helper flows, and per-section resets.
 8. `/currency` now follows the place model by resolving `currency -> country -> representative city -> target city`.
-9. The next major constraint is data coverage, not interaction design.
+9. Time and currency interactions are re-coupled and now follow the same active target city.
+10. The map now defaults to off, can be toggled from the editor, and disappears from the main layout when disabled.
+11. The next major constraint is data coverage, not interaction design.
 
 ## Resume here
-1. Introduce checked-in source data under `data/`:
-   - `countries.csv` for canonical country and currency facts
-   - `representative_cities.json` for curated per-country default city records
-2. Generate Rust reference tables from those files at build time.
-3. Preserve the current runtime API in `reference.rs` and `config.rs` while swapping the backing data source.
-4. Expand country coverage to all countries and expand currency coverage to the currencies we want to support.
+1. Expand `data/countries.csv` from the current subset to full country coverage.
+2. Expand `data/representative_cities.json` so every supported country has one default representative city.
+3. Review shared-currency policy country by country, especially where one currency maps to several states.
+4. Decide whether to expose a small visible indicator for the currently active target city across the time and currency panels.
 5. Keep `Esc` in the config editor as “close editor only”; do not silently discard the draft.
 
 ## Design principles
@@ -210,7 +209,6 @@
 10. Each supported country resolves to one default representative city.
 
 ## Immediate next coding step
-1. Commit the current place-driven UI and runtime changes as a checkpoint.
-2. Add `data/countries.csv` and `data/representative_cities.json` with the current supported subset.
-3. Add `build.rs` and generate the existing reference tables from those source files.
-4. Keep the generated-output refactor behaviour-preserving before expanding coverage.
+1. Expand the generated reference data from the current subset to full intended country coverage.
+2. Ensure each supported country resolves to one curated representative city and one timezone anchor.
+3. Add more coverage tests around generated data completeness and shared-currency choices.

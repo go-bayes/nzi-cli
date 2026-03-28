@@ -1,0 +1,122 @@
+[
+  {
+    "country_code": "NZL",
+    "city_code": "WLG",
+    "city_name": "Wellington",
+    "country_name": "New Zealand",
+    "timezone": "Pacific/Auckland",
+    "currency_code": "NZD"
+  },
+  {
+    "country_code": "USA",
+    "city_code": "BOS",
+    "city_name": "Boston",
+    "country_name": "United States",
+    "timezone": "America/New_York",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "GBR",
+    "city_code": "LDN",
+    "city_name": "London",
+    "country_name": "United Kingdom",
+    "timezone": "Europe/London",
+    "currency_code": "GBP"
+  },
+  {
+    "country_code": "AUS",
+    "city_code": "SYD",
+    "city_name": "Sydney",
+    "country_name": "Australia",
+    "timezone": "Australia/Sydney",
+    "currency_code": "AUD"
+  },
+  {
+    "country_code": "JPN",
+    "city_code": "TYO",
+    "city_name": "Tokyo",
+    "country_name": "Japan",
+    "timezone": "Asia/Tokyo",
+    "currency_code": "JPY"
+  },
+  {
+    "country_code": "SGP",
+    "city_code": "SIN",
+    "city_name": "Singapore",
+    "country_name": "Singapore",
+    "timezone": "Asia/Singapore",
+    "currency_code": "SGD"
+  },
+  {
+    "country_code": "MYS",
+    "city_code": "KL",
+    "city_name": "Kuala Lumpur",
+    "country_name": "Malaysia",
+    "timezone": "Asia/Kuala_Lumpur",
+    "currency_code": "MYR"
+  },
+  {
+    "country_code": "FRA",
+    "city_code": "PAR",
+    "city_name": "Paris",
+    "country_name": "France",
+    "timezone": "Europe/Paris",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "DEU",
+    "city_code": "BER",
+    "city_name": "Berlin",
+    "country_name": "Germany",
+    "timezone": "Europe/Berlin",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "BRA",
+    "city_code": "RIO",
+    "city_name": "RIO",
+    "country_name": "Brazil",
+    "timezone": "America/Sao_Paulo",
+    "currency_code": "BRL"
+  },
+  {
+    "country_code": "ETH",
+    "city_code": "ADD",
+    "city_name": "Addis Ababa",
+    "country_name": "Ethiopia",
+    "timezone": "Africa/Addis_Ababa",
+    "currency_code": "ETB"
+  },
+  {
+    "country_code": "BGD",
+    "city_code": "DAC",
+    "city_name": "Dhaka",
+    "country_name": "Bangladesh",
+    "timezone": "Asia/Dhaka",
+    "currency_code": "BDT"
+  },
+  {
+    "country_code": "IRN",
+    "city_code": "THR",
+    "city_name": "Tehran",
+    "country_name": "Iran",
+    "timezone": "Asia/Tehran",
+    "currency_code": "IRR"
+  },
+  {
+    "country_code": "ISR",
+    "city_code": "TLV",
+    "city_name": "Tel Aviv",
+    "country_name": "Israel",
+    "timezone": "Asia/Jerusalem",
+    "currency_code": "ILS"
+  },
+  {
+    "country_code": "CHN",
+    "city_code": "BJS",
+    "city_name": "Beijing",
+    "country_name": "China",
+    "timezone": "Asia/Shanghai",
+    "currency_code": "CNY"
+  }
+]

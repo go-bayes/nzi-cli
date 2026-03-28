@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+- Shifted the app to a place-driven model with one anchor city and an ordered target-city list shared by the time and currency panels.
+- Added a staged `/config` editor with `Places`, `Map`, and `Actions` tabs, plus draft apply, discard, reset, reload, and restore behaviour.
+- `/country` and `/currency` now resolve through representative cities and can add missing representative cities into the tracked catalogue.
+- Time and currency panel cycling now stay aligned on the same target city.
+- Added generated reference data from checked-in `data/countries.csv` and `data/representative_cities.json` via `build.rs`.
+- Added representative-city coverage for Iran and Israel.
+- Map is now optional, defaults to off, disappears from the main layout when disabled, and supports add and delete for focal-country focus in the editor.
+- Config editor overlays are now opaque, with clearer tab-specific action hints.
+
 ## 0.2.5
 - Added optional config-backed `currency` and `map` sections, with normalisation and validation on load/save.
 - Added canonical country and currency reference data for shared lookup, alias matching, map anchors, and picker search.

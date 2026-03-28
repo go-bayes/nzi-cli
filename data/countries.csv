@@ -1,0 +1,50 @@
+country_code,country_name,country_aliases,lat,lon,currency_code,currency_name,currency_aliases,currency_focal_country_code
+NZL,New Zealand,nz|aotearoa,-41.0,174.0,NZD,New Zealand dollar,nzd|new zealand dollar,NZL
+AUS,Australia,,-25.0,133.0,AUD,Australian dollar,aud|australian dollar,AUS
+USA,United States,usa|us|united states of america|america,39.5,-98.35,USD,US dollar,usd|us dollar|dollar,USA
+CAN,Canada,,56.1,-106.3,CAD,Canadian dollar,cad|canadian dollar,CAN
+MEX,Mexico,,23.6,-102.6,MXN,Mexican peso,mxn|peso,MEX
+BRA,Brazil,,-10.8,-52.9,BRL,Brazilian real,brl|real,BRA
+ARG,Argentina,,-38.4,-63.6,ARS,Argentine peso,ars,ARG
+CHL,Chile,,-35.7,-71.5,CLP,Chilean peso,clp,CHL
+PER,Peru,,-9.2,-75.0,PEN,Peruvian sol,pen,PER
+COL,Colombia,,4.6,-74.1,COP,Colombian peso,cop,COL
+GBR,United Kingdom,uk|great britain|britain,54.0,-2.0,GBP,Pound sterling,gbp|pound|sterling,GBR
+IRL,Ireland,,53.1,-8.0,EUR,Euro,eur|euro,DEU
+FRA,France,,46.2,2.2,EUR,Euro,eur|euro,DEU
+DEU,Germany,,51.1657,10.4515,EUR,Euro,eur|euro,DEU
+NLD,Netherlands,,52.1,5.3,EUR,Euro,eur|euro,DEU
+BEL,Belgium,,50.5,4.5,EUR,Euro,eur|euro,DEU
+CHE,Switzerland,,46.8,8.2,CHF,Swiss franc,chf|franc,CHE
+AUT,Austria,,47.5,14.5,EUR,Euro,eur|euro,DEU
+ITA,Italy,,41.9,12.6,EUR,Euro,eur|euro,DEU
+ESP,Spain,,40.4,-3.7,EUR,Euro,eur|euro,DEU
+PRT,Portugal,,39.7,-8.0,EUR,Euro,eur|euro,DEU
+GRC,Greece,,39.1,22.9,EUR,Euro,eur|euro,DEU
+POL,Poland,,52.0,19.1,PLN,Polish zloty,pln,POL
+CZE,Czechia,czech|czech republic,49.8,15.5,CZK,Czech koruna,czk,CZE
+SWE,Sweden,,62.0,15.0,SEK,Swedish krona,sek,SWE
+NOR,Norway,,64.5,11.5,NOK,Norwegian krone,nok,NOR
+FIN,Finland,,64.0,26.0,EUR,Euro,eur|euro,DEU
+DNK,Denmark,,56.0,10.0,DKK,Danish krone,dkk,DNK
+RUS,Russia,,61.5,105.0,RUB,Russian ruble,rub|ruble,RUS
+UKR,Ukraine,,49.0,32.0,UAH,Ukrainian hryvnia,uah,UKR
+TUR,Turkey,,39.0,35.0,TRY,Turkish lira,try|lira,TUR
+EGY,Egypt,,26.8,30.8,EGP,Egyptian pound,egp,EGY
+NGA,Nigeria,,9.1,8.7,NGN,Nigerian naira,ngn,NGA
+KEN,Kenya,,0.2,37.9,KES,Kenyan shilling,kes,KEN
+ETH,Ethiopia,,9.1,40.5,ETB,Ethiopian birr,etb|birr,ETH
+ZAF,South Africa,,-29.0,24.0,ZAR,South African rand,zar|rand,ZAF
+SAU,Saudi Arabia,saudi,23.9,45.1,SAR,Saudi riyal,sar|riyal,SAU
+ARE,United Arab Emirates,uae,23.4,53.8,AED,UAE dirham,aed|dirham,ARE
+QAT,Qatar,,25.3,51.2,QAR,Qatari riyal,qar,QAT
+IRN,Iran,islamic republic of iran,32.0,53.0,IRR,Iranian rial,irr|rial,IRN
+ISR,Israel,,31.0,35.0,ILS,Israeli new shekel,ils|shekel,ISR
+IND,India,,21.0,78.0,INR,Indian rupee,inr|rupee,IND
+BGD,Bangladesh,,23.685,90.3563,BDT,Bangladeshi taka,bdt|taka,BGD
+CHN,China,,35.9,104.2,CNY,Chinese yuan,cny|yuan|renminbi,CHN
+JPN,Japan,,36.2,138.2,JPY,Japanese yen,jpy|yen,JPN
+KOR,South Korea,korea,36.5,127.9,KRW,South Korean won,krw|won,KOR
+SGP,Singapore,,1.3521,103.8198,SGD,Singapore dollar,sgd,SGP
+MYS,Malaysia,,4.2105,101.9758,MYR,Malaysian ringgit,myr|ringgit,MYS
+IDN,Indonesia,,-2.5,117.2,IDR,Indonesian rupiah,idr|rupiah,IDN

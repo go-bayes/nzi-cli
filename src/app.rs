@@ -358,8 +358,8 @@ fn apply_command_action_to_config(
                 .unwrap_or_else(|| country_code.to_string());
             let city = config
                 .representative_city_for_currency_code(code)
-                .map(|city| (city.code.clone(), city.name.clone()))
                 .ok_or_else(|| format!("no representative city configured for {}", name))?;
+            ensure_city_in_config_catalogue(config, &city);
             let anchor_code = config.effective_anchor_city_code();
             let time = config.time.get_or_insert_with(TimeConfig::default);
             time.anchor_city_code
@@ -368,14 +368,14 @@ fn apply_command_action_to_config(
             if !time
                 .target_city_codes
                 .iter()
-                .any(|value| value.eq_ignore_ascii_case(&city.0))
-                && !city.0.eq_ignore_ascii_case(&anchor_code)
+                .any(|value| value.eq_ignore_ascii_case(&city.code))
+                && !city.code.eq_ignore_ascii_case(&anchor_code)
             {
-                time.target_city_codes.push(city.0.clone());
+                time.target_city_codes.push(city.code.clone());
             }
             Ok(Some(format!(
                 "{} -> {} -> {} added to target cities",
-                code, country_name, city.1
+                code, country_name, city.name
             )))
         }
         CommandAction::SetMapMode { mode } => {
@@ -405,6 +405,20 @@ fn apply_command_action_to_config(
         | CommandAction::OpenPlaceCurrencyPicker
         | CommandAction::OpenMapPicker => Ok(None),
     }
+}
+
+fn ensure_city_in_config_catalogue(config: &mut Config, city: &City) {
+    if config.current_city.code.eq_ignore_ascii_case(&city.code)
+        || config.home_city.code.eq_ignore_ascii_case(&city.code)
+        || config
+            .tracked_cities
+            .iter()
+            .any(|tracked| tracked.code.eq_ignore_ascii_case(&city.code))
+    {
+        return;
+    }
+
+    config.tracked_cities.push(city.clone());
 }
 
 impl App {
@@ -591,7 +605,170 @@ impl App {
             .find(|city| city.code.eq_ignore_ascii_case(code))
     }
 
+    fn target_cities(&self) -> Vec<&City> {
+        self.config
+            .effective_target_city_codes()
+            .into_iter()
+            .filter_map(|code| self.city_by_code(&code))
+            .collect()
+    }
+
+    fn anchor_city(&self) -> Option<&City> {
+        let anchor_code = self.config.effective_anchor_city_code();
+        self.city_by_code(&anchor_code)
+    }
+
+    fn current_target_city_code(&self) -> Option<String> {
+        let target_cities = self.target_cities();
+        if target_cities.is_empty() {
+            return None;
+        }
+
+        target_cities
+            .iter()
+            .find(|city| {
+                city.code
+                    .eq_ignore_ascii_case(&self.time_converter.to_city_code)
+            })
+            .map(|city| city.code.clone())
+            .or_else(|| target_cities.first().map(|city| city.code.clone()))
+    }
+
+    fn set_current_target_city(&mut self, city_code: &str) {
+        let anchor = self
+            .anchor_city()
+            .cloned()
+            .unwrap_or_else(|| self.config.current_city.clone());
+        let Some(target_city) = self.city_by_code(city_code).cloned() else {
+            return;
+        };
+
+        self.time_converter.from_city_code = anchor.code.clone();
+        self.time_converter.to_city_code = target_city.code.clone();
+        self.currency_converter
+            .set_pair(&anchor.currency, &target_city.currency);
+        self.update_time_conversion();
+    }
+
+    fn cycle_current_target_city(&mut self) {
+        let target_codes: Vec<String> = self
+            .target_cities()
+            .iter()
+            .map(|city| city.code.clone())
+            .collect();
+        if target_codes.is_empty() {
+            return;
+        }
+
+        let current_code = self.current_target_city_code();
+        let current_index = current_code
+            .as_deref()
+            .and_then(|code| {
+                target_codes
+                    .iter()
+                    .position(|entry| entry.eq_ignore_ascii_case(code))
+            })
+            .unwrap_or(0);
+        let next_index = (current_index + 1) % target_codes.len();
+        self.set_current_target_city(&target_codes[next_index]);
+    }
+
+    fn sync_currency_to_time_selection(&mut self) {
+        let anchor = self
+            .anchor_city()
+            .cloned()
+            .unwrap_or_else(|| self.config.current_city.clone());
+        let Some(target_city) = self
+            .city_by_code(&self.time_converter.to_city_code)
+            .cloned()
+        else {
+            return;
+        };
+
+        self.currency_converter
+            .set_pair(&anchor.currency, &target_city.currency);
+    }
+
+    pub fn map_enabled(&self) -> bool {
+        self.config.effective_map_settings().enabled
+    }
+
+    fn next_visible_focus(&self, focus: Focus) -> Focus {
+        if self.map_enabled() {
+            return focus.next();
+        }
+
+        match focus {
+            Focus::Weather => Focus::TimeConvert,
+            Focus::TimeConvert => Focus::Currency,
+            Focus::Currency | Focus::Map => Focus::Weather,
+        }
+    }
+
+    fn prev_visible_focus(&self, focus: Focus) -> Focus {
+        if self.map_enabled() {
+            return focus.prev();
+        }
+
+        match focus {
+            Focus::Weather | Focus::Map => Focus::Currency,
+            Focus::TimeConvert => Focus::Weather,
+            Focus::Currency => Focus::TimeConvert,
+        }
+    }
+
+    fn up_visible_focus(&self, focus: Focus) -> Focus {
+        if self.map_enabled() {
+            return focus.up();
+        }
+
+        match focus {
+            Focus::TimeConvert | Focus::Currency | Focus::Map => Focus::Weather,
+            Focus::Weather => Focus::Weather,
+        }
+    }
+
+    fn down_visible_focus(&self, focus: Focus) -> Focus {
+        if self.map_enabled() {
+            return focus.down();
+        }
+
+        match focus {
+            Focus::Weather | Focus::Map => Focus::TimeConvert,
+            Focus::TimeConvert | Focus::Currency => focus,
+        }
+    }
+
+    fn left_visible_focus(&self, focus: Focus) -> Focus {
+        if self.map_enabled() {
+            return focus.left();
+        }
+
+        match focus {
+            Focus::Currency => Focus::TimeConvert,
+            Focus::Weather | Focus::TimeConvert | Focus::Map => focus,
+        }
+    }
+
+    fn right_visible_focus(&self, focus: Focus) -> Focus {
+        if self.map_enabled() {
+            return focus.right();
+        }
+
+        match focus {
+            Focus::TimeConvert => Focus::Currency,
+            Focus::Map => Focus::Weather,
+            Focus::Weather | Focus::Currency => focus,
+        }
+    }
+
     fn set_focus(&mut self, focus: Focus) {
+        let focus = if self.map_enabled() || focus != Focus::Map {
+            focus
+        } else {
+            Focus::Weather
+        };
+
         self.focus = focus;
         if focus != Focus::Map {
             self.map_context = focus;
@@ -701,21 +878,21 @@ impl App {
             KeyCode::Char('q') => self.running = false,
 
             // arrow keys move between panels
-            KeyCode::Up => self.set_focus(self.focus.up()),
-            KeyCode::Down => self.set_focus(self.focus.down()),
-            KeyCode::Left => self.set_focus(self.focus.left()),
-            KeyCode::Right => self.set_focus(self.focus.right()),
-            KeyCode::Tab => self.set_focus(self.focus.next()),
-            KeyCode::BackTab => self.set_focus(self.focus.prev()),
+            KeyCode::Up => self.set_focus(self.up_visible_focus(self.focus)),
+            KeyCode::Down => self.set_focus(self.down_visible_focus(self.focus)),
+            KeyCode::Left => self.set_focus(self.left_visible_focus(self.focus)),
+            KeyCode::Right => self.set_focus(self.right_visible_focus(self.focus)),
+            KeyCode::Tab => self.set_focus(self.next_visible_focus(self.focus)),
+            KeyCode::BackTab => self.set_focus(self.prev_visible_focus(self.focus)),
 
             KeyCode::Enter => self.enter_edit_mode(),
             KeyCode::Char('e') => self.enter_edit_mode(),
 
             // hjkl for panel navigation (vim-style, same as arrows)
-            KeyCode::Char('h') => self.set_focus(self.focus.left()),
-            KeyCode::Char('l') => self.set_focus(self.focus.right()),
-            KeyCode::Char('j') => self.set_focus(self.focus.down()),
-            KeyCode::Char('k') => self.set_focus(self.focus.up()),
+            KeyCode::Char('h') => self.set_focus(self.left_visible_focus(self.focus)),
+            KeyCode::Char('l') => self.set_focus(self.right_visible_focus(self.focus)),
+            KeyCode::Char('j') => self.set_focus(self.down_visible_focus(self.focus)),
+            KeyCode::Char('k') => self.set_focus(self.up_visible_focus(self.focus)),
 
             // swap/toggle shortcut
             KeyCode::Char('s') => self.handle_swap(),
@@ -767,7 +944,7 @@ impl App {
 
             // 'c' cycles currency pair when on currency panel
             KeyCode::Char('c') if self.focus == Focus::Currency => {
-                self.currency_converter.cycle_pair();
+                self.cycle_current_target_city();
             }
 
             // space - context-dependent action
@@ -781,14 +958,10 @@ impl App {
                         self.weather_refresh_pending = true;
                     }
                     Focus::TimeConvert => {
-                        // cycle through destination cities
-                        let city_codes = self.config.effective_target_city_codes();
-                        self.time_converter.cycle_to_city(&city_codes);
-                        self.update_time_conversion();
+                        self.cycle_current_target_city();
                     }
                     Focus::Currency => {
-                        // cycle currency pair
-                        self.currency_converter.cycle_pair();
+                        self.cycle_current_target_city();
                     }
                     _ => {}
                 }
@@ -1034,6 +1207,7 @@ impl App {
             }
             Focus::TimeConvert => {
                 self.time_converter.swap_cities();
+                self.sync_currency_to_time_selection();
                 self.update_time_conversion();
             }
             Focus::Weather => {
@@ -1523,6 +1697,11 @@ impl App {
                 Ok(())
             }
             ConfigTab::Map => {
+                if editor.selected == 2 {
+                    self.clear_map_focal_country_from_draft()?;
+                    return Ok(());
+                }
+
                 if editor.selected < 3 {
                     return Ok(());
                 }
@@ -1627,15 +1806,22 @@ impl App {
         let representative_city = self
             .active_config()
             .representative_city_for_country_code(country_code)
-            .map(|city| (city.code.clone(), city.name.clone()))
             .ok_or_else(|| anyhow!("no representative city configured for {}", country_name))?;
+        let city_code = representative_city.code.clone();
+        let city_name = representative_city.name.clone();
 
-        self.add_target_city_to_draft(&representative_city.0)?;
+        self.ensure_city_in_active_catalogue(&representative_city);
+        self.add_target_city_to_draft(&city_code)?;
         self.set_status(format!(
             "Draft updated: {} resolves to {}. Use /apply to save",
-            country_name, representative_city.1
+            country_name, city_name
         ));
         Ok(())
+    }
+
+    fn ensure_city_in_active_catalogue(&mut self, city: &City) {
+        let target = self.active_config_mut();
+        ensure_city_in_config_catalogue(target, city);
     }
 
     fn reset_anchor_city_in_draft(&mut self) -> Result<()> {
@@ -1738,6 +1924,17 @@ impl App {
             "Draft updated: added {} to map focus countries. Use /apply to save",
             code
         ));
+        Ok(())
+    }
+
+    fn clear_map_focal_country_from_draft(&mut self) -> Result<()> {
+        let target = self.active_config_mut();
+        let map = target.map.get_or_insert_with(MapConfig::default);
+        if map.focal_country_code.take().is_some() {
+            self.set_status(
+                "Draft updated: cleared map focal country. Use /apply to save".to_string(),
+            );
+        }
         Ok(())
     }
 
@@ -1855,6 +2052,10 @@ impl App {
         self.weather_error = None;
         self.weather_expanded = true;
         self.weather_refresh_pending = true;
+        if !self.map_enabled() && self.focus == Focus::Map {
+            self.focus = Focus::Weather;
+            self.map_context = Focus::Weather;
+        }
 
         self.update_times();
         self.update_time_conversion();
@@ -1864,6 +2065,7 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::with_temp_config_dir_for_test;
 
     #[test]
     fn parses_country_alias_command() {
@@ -1927,6 +2129,30 @@ mod tests {
     }
 
     #[test]
+    fn currency_command_adds_missing_representative_city_to_catalogue() {
+        let mut config = Config::default();
+        config.tracked_cities.clear();
+        let action = parse_command("/currency yen").expect("command should parse");
+
+        apply_command_action_to_config(&mut config, &action)
+            .expect("config mutation should succeed");
+
+        assert!(
+            config
+                .tracked_cities
+                .iter()
+                .any(|city| city.code.eq_ignore_ascii_case("TYO"))
+        );
+        assert_eq!(
+            config
+                .time
+                .as_ref()
+                .map(|time| time.target_city_codes.clone()),
+            Some(vec!["TYO".to_string()])
+        );
+    }
+
+    #[test]
     fn applies_map_mode_command_to_config() {
         let mut config = Config::default();
         let action = parse_command("/map countries").expect("command should parse");
@@ -1947,6 +2173,138 @@ mod tests {
         app.map_context = Focus::Weather;
 
         assert_eq!(app.active_map_focus(), Focus::Map);
+    }
+
+    #[test]
+    fn hidden_map_is_skipped_in_focus_navigation() {
+        let mut config = Config::default();
+        config.map = Some(MapConfig {
+            enabled: false,
+            ..MapConfig::default()
+        });
+        let mut app = App::new(config);
+        app.focus = Focus::Currency;
+
+        app.handle_normal_input(crossterm::event::KeyCode::Tab);
+        assert_eq!(app.focus, Focus::Weather);
+
+        app.handle_normal_input(crossterm::event::KeyCode::BackTab);
+        assert_eq!(app.focus, Focus::Currency);
+    }
+
+    #[test]
+    fn map_editor_can_clear_focal_country() {
+        let mut config = Config::default();
+        config.map = Some(MapConfig {
+            focal_country_code: Some("JPN".to_string()),
+            ..MapConfig::default()
+        });
+        let mut app = App::new(config);
+        app.open_config_editor();
+        if let Some(editor) = app.config_editor.as_mut() {
+            editor.tab = ConfigTab::Map;
+            editor.selected = 2;
+        }
+
+        app.remove_config_editor_item()
+            .expect("map focal country should clear");
+
+        assert_eq!(
+            app.config_draft
+                .as_ref()
+                .and_then(|draft| draft.map.as_ref())
+                .and_then(|map| map.focal_country_code.clone()),
+            None
+        );
+    }
+
+    #[test]
+    fn actions_tab_apply_saves_and_closes_editor() {
+        with_temp_config_dir_for_test(|| {
+            let mut app = App::new(Config::default());
+            app.open_config_editor();
+            if let Some(draft) = app.config_draft.as_mut() {
+                draft.time = Some(TimeConfig {
+                    anchor_city_code: Some("WLG".to_string()),
+                    target_city_codes: vec!["TYO".to_string()],
+                    city_codes: Vec::new(),
+                });
+            }
+            if let Some(editor) = app.config_editor.as_mut() {
+                editor.tab = ConfigTab::Actions;
+                editor.selected = 0;
+            }
+
+            app.handle_config_editor_input(crossterm::event::KeyCode::Enter);
+
+            assert!(app.config_editor.is_none());
+            assert!(app.config_draft.is_none());
+            assert_eq!(
+                app.config.effective_target_city_codes(),
+                vec!["TYO".to_string()]
+            );
+        });
+    }
+
+    #[test]
+    fn actions_tab_reset_replaces_draft() {
+        let mut app = App::new(Config::default());
+        app.open_config_editor();
+        if let Some(draft) = app.config_draft.as_mut() {
+            draft.time = Some(TimeConfig {
+                anchor_city_code: Some("WLG".to_string()),
+                target_city_codes: vec!["PAR".to_string()],
+                city_codes: Vec::new(),
+            });
+        }
+        if let Some(editor) = app.config_editor.as_mut() {
+            editor.tab = ConfigTab::Actions;
+            editor.selected = 2;
+        }
+
+        app.handle_config_editor_input(crossterm::event::KeyCode::Enter);
+
+        assert!(app.config_editor.is_some());
+        assert!(app.config_draft.is_some());
+        assert_eq!(
+            app.config_draft
+                .as_ref()
+                .map(|draft| draft.effective_target_city_codes()),
+            Some(Config::default().effective_target_city_codes())
+        );
+    }
+
+    #[test]
+    fn cycling_time_keeps_currency_aligned_to_same_target_city() {
+        let mut app = App::new(Config::default());
+        app.focus = Focus::TimeConvert;
+
+        app.handle_normal_input(crossterm::event::KeyCode::Char(' '));
+
+        assert_eq!(app.time_converter.to_city_code, "LDN");
+        assert_eq!(app.currency_converter.to_currency, "GBP");
+    }
+
+    #[test]
+    fn cycling_currency_keeps_time_aligned_to_same_target_city() {
+        let mut app = App::new(Config::default());
+        app.focus = Focus::Currency;
+
+        app.handle_normal_input(crossterm::event::KeyCode::Char(' '));
+
+        assert_eq!(app.time_converter.to_city_code, "LDN");
+        assert_eq!(app.currency_converter.to_currency, "GBP");
+    }
+
+    #[test]
+    fn swapping_time_keeps_currency_aligned() {
+        let mut app = App::new(Config::default());
+        app.focus = Focus::TimeConvert;
+
+        app.handle_normal_input(crossterm::event::KeyCode::Char('s'));
+
+        assert_eq!(app.time_converter.to_city_code, "WLG");
+        assert_eq!(app.currency_converter.to_currency, "NZD");
     }
 
     #[test]
@@ -2155,6 +2513,34 @@ mod tests {
     }
 
     #[test]
+    fn places_country_helper_can_use_generated_representative_city() {
+        let mut config = Config::default();
+        config.tracked_cities.clear();
+        let mut app = App::new(config);
+        app.open_config_editor();
+
+        app.add_country_to_places_draft("FRA", "France")
+            .expect("country helper should resolve");
+
+        assert!(
+            app.config_draft
+                .as_ref()
+                .map(|draft| draft
+                    .tracked_cities
+                    .iter()
+                    .any(|city| city.code.eq_ignore_ascii_case("PAR")))
+                .unwrap_or(false)
+        );
+        assert_eq!(
+            app.config_draft
+                .as_ref()
+                .and_then(|draft| draft.time.as_ref())
+                .map(|time| time.target_city_codes.clone()),
+            Some(vec!["PAR".to_string()])
+        );
+    }
+
+    #[test]
     fn places_currency_helper_resolves_to_representative_city() {
         let mut app = App::new(Config::default());
         app.open_config_editor();
@@ -2163,7 +2549,7 @@ mod tests {
             code: "JPY".to_string(),
             name: "Japanese yen".to_string(),
         })
-            .expect("currency helper should resolve");
+        .expect("currency helper should resolve");
 
         assert_eq!(
             app.config_draft

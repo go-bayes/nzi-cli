@@ -227,6 +227,23 @@ impl CurrencyConverter {
         }
     }
 
+    pub fn set_pair(&mut self, from: &str, to: &str) {
+        self.from_currency = from.trim().to_uppercase();
+        self.to_currency = to.trim().to_uppercase();
+        self.pair_index = self
+            .available_pairs
+            .iter()
+            .position(|(pair_from, pair_to)| {
+                pair_from.eq_ignore_ascii_case(&self.from_currency)
+                    && pair_to.eq_ignore_ascii_case(&self.to_currency)
+            })
+            .unwrap_or(0);
+        self.rate = None;
+        self.to_amount = 0.0;
+        self.needs_refresh = true;
+        self.recalculate();
+    }
+
     pub fn handle_input(&mut self, c: char) {
         if c.is_ascii_digit() || (c == '.' && !self.input_buffer.contains('.')) {
             self.input_buffer.push(c);
@@ -248,22 +265,6 @@ impl CurrencyConverter {
     pub fn clear_input(&mut self) {
         self.input_buffer.clear();
         self.set_amount(0.0);
-    }
-
-    /// cycle to the next currency pair
-    pub fn cycle_pair(&mut self) {
-        if self.available_pairs.is_empty() {
-            return;
-        }
-
-        self.pair_index = (self.pair_index + 1) % self.available_pairs.len();
-        let (from, to) = &self.available_pairs[self.pair_index];
-        self.from_currency = from.clone();
-        self.to_currency = to.clone();
-        self.rate = None;
-        self.to_amount = 0.0;
-        self.needs_refresh = true;
-        self.recalculate();
     }
 
     /// check if rate refresh is needed

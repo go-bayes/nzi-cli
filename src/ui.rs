@@ -139,22 +139,48 @@ fn draw_config_editor_overlay(frame: &mut Frame, area: Rect, app: &App) {
         body_area[1],
     );
 
-    let footer = Line::from(vec![
-        Span::styled("[Tab]", Style::default().fg(catppuccin::OVERLAY1)),
-        Span::styled(" tabs ", Theme::text_muted()),
-        Span::styled("[j/k]", Style::default().fg(catppuccin::OVERLAY1)),
-        Span::styled(" move ", Theme::text_muted()),
-        Span::styled("[J/K]", Style::default().fg(catppuccin::OVERLAY1)),
-        Span::styled(" reorder ", Theme::text_muted()),
-        Span::styled("[Enter]", Style::default().fg(catppuccin::OVERLAY1)),
-        Span::styled(" select ", Theme::text_muted()),
-        Span::styled("[a]", Style::default().fg(catppuccin::OVERLAY1)),
-        Span::styled(" add ", Theme::text_muted()),
-        Span::styled("[x]", Style::default().fg(catppuccin::OVERLAY1)),
-        Span::styled(" remove ", Theme::text_muted()),
-        Span::styled("[Esc]", Style::default().fg(catppuccin::OVERLAY1)),
-        Span::styled(" close", Theme::text_muted()),
-    ]);
+    let footer = match editor.tab {
+        ConfigTab::Places => Line::from(vec![
+            Span::styled("[Tab]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" tabs ", Theme::text_muted()),
+            Span::styled("[j/k]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" move ", Theme::text_muted()),
+            Span::styled("[J/K]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" reorder ", Theme::text_muted()),
+            Span::styled("[Enter]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" select ", Theme::text_muted()),
+            Span::styled("[a]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" add ", Theme::text_muted()),
+            Span::styled("[x]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" remove ", Theme::text_muted()),
+            Span::styled("[Esc]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" close", Theme::text_muted()),
+        ]),
+        ConfigTab::Map => Line::from(vec![
+            Span::styled("[Tab]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" tabs ", Theme::text_muted()),
+            Span::styled("[j/k]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" move ", Theme::text_muted()),
+            Span::styled("[Enter]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" toggle or edit ", Theme::text_muted()),
+            Span::styled("[a]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" add focus ", Theme::text_muted()),
+            Span::styled("[x]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" clear or remove ", Theme::text_muted()),
+            Span::styled("[Esc]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" close", Theme::text_muted()),
+        ]),
+        ConfigTab::Actions => Line::from(vec![
+            Span::styled("[Tab]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" tabs ", Theme::text_muted()),
+            Span::styled("[j/k]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" move ", Theme::text_muted()),
+            Span::styled("[Enter]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" run action ", Theme::text_muted()),
+            Span::styled("[Esc]", Style::default().fg(catppuccin::OVERLAY1)),
+            Span::styled(" close", Theme::text_muted()),
+        ]),
+    };
     frame.render_widget(Paragraph::new(footer), body_area[2]);
 }
 
@@ -253,11 +279,11 @@ fn config_editor_map_lines(config: &crate::config::Config, selected: usize) -> V
                 .fg(catppuccin::PEACH)
                 .add_modifier(Modifier::BOLD),
         )]),
-        Line::from("Map routes are optional. Remove list entries with x."),
+        Line::from("Enter toggles the first row. Use x to clear or remove focus entries."),
         Line::from(""),
         config_editor_row(
             selected == 0,
-            "Map enabled",
+            "[toggle] Map enabled",
             if settings.enabled { "On" } else { "Off" },
         ),
         config_editor_row(selected == 1, "Mode", map_mode_label(settings.mode)),
@@ -289,6 +315,7 @@ fn config_editor_action_lines(selected: usize) -> Vec<Line<'static>> {
                 .add_modifier(Modifier::BOLD),
         )]),
         Line::from("Apply writes to config.toml and snapshots the current live config."),
+        Line::from("Press Enter to run the highlighted action."),
         Line::from(""),
         config_editor_row(selected == 0, "Apply draft", "Save and close"),
         config_editor_row(selected == 1, "Discard draft", "Drop unsaved changes"),
@@ -734,6 +761,11 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App) {
 
 /// draw the main content area with dynamic layout based on weather expansion
 fn draw_content(frame: &mut Frame, area: Rect, app: &App) {
+    if !app.map_enabled() {
+        draw_content_without_map(frame, area, app);
+        return;
+    }
+
     // decide whether expanded grid can fit; otherwise fall back to compact
     let mut use_expanded = app.weather_expanded;
     if use_expanded {
@@ -821,6 +853,43 @@ fn draw_content(frame: &mut Frame, area: Rect, app: &App) {
     }
 }
 
+fn draw_content_without_map(frame: &mut Frame, area: Rect, app: &App) {
+    let mut use_expanded = app.weather_expanded;
+    if use_expanded && area.height < 14 {
+        use_expanded = false;
+    }
+
+    if use_expanded {
+        let body = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(14), Constraint::Length(7)])
+            .split(area);
+
+        let bottom = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(55), Constraint::Percentage(45)])
+            .split(body[1]);
+
+        draw_weather_panel_expanded(frame, body[0], app);
+        draw_time_panel(frame, bottom[0], app);
+        draw_currency_panel(frame, bottom[1], app);
+    } else {
+        let body = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(10), Constraint::Length(11)])
+            .split(area);
+
+        let bottom = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(55), Constraint::Percentage(45)])
+            .split(body[1]);
+
+        draw_weather_panel(frame, body[0], app);
+        draw_time_panel(frame, bottom[0], app);
+        draw_currency_panel(frame, bottom[1], app);
+    }
+}
+
 /// create a styled block with focus indication
 fn styled_block(title: &str, focused: bool) -> Block<'static> {
     let (border_type, border_color) = if focused {
@@ -849,28 +918,6 @@ fn styled_block(title: &str, focused: bool) -> Block<'static> {
 fn draw_map_panel(frame: &mut Frame, area: Rect, app: &App) {
     let map_settings = app.config.effective_map_settings();
     if !map_settings.enabled {
-        let block = styled_block("Map [disabled]", app.focus == Focus::Map);
-        let inner = block.inner(area);
-        frame.render_widget(block, area);
-        frame.render_widget(
-            Paragraph::new(vec![
-                Line::from(""),
-                Line::from(vec![Span::styled(
-                    "Map disabled in /config",
-                    Style::default()
-                        .fg(catppuccin::OVERLAY1)
-                        .add_modifier(Modifier::BOLD),
-                )]),
-                Line::from(""),
-                Line::from(vec![Span::styled(
-                    "Enable it in the Map tab to show routes again.",
-                    Style::default().fg(catppuccin::SUBTEXT0),
-                )]),
-            ])
-            .alignment(Alignment::Center)
-            .wrap(Wrap { trim: false }),
-            inner,
-        );
         return;
     }
 

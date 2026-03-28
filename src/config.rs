@@ -12,7 +12,8 @@ use std::path::PathBuf;
 use crate::reference::{
     canonical_currency_code_for_country, country_by_code, focal_country_code_for_currency,
     is_valid_country_code, is_valid_currency_code, lookup_country, normalise_country_code,
-    normalise_currency_code,
+    normalise_currency_code, representative_city_by_country_code,
+    representative_city_by_currency_code,
 };
 
 /// city configuration with timezone and currency info
@@ -293,7 +294,7 @@ pub struct MapConfig {
 impl Default for MapConfig {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             mode: MapMode::Route,
             focus_city_code: None,
             focus_country_codes: Vec::new(),
@@ -500,16 +501,38 @@ impl Config {
         representatives
     }
 
-    pub fn representative_city_for_country_code(&self, country_code: &str) -> Option<&City> {
+    pub fn representative_city_for_country_code(&self, country_code: &str) -> Option<City> {
         let country_code = normalise_country_code(country_code);
-        self.representative_cities().into_iter().find(|city| {
-            lookup_country(&city.country)
-                .map(|country| country.code == country_code)
-                .unwrap_or(false)
-        })
+        self.representative_cities()
+            .into_iter()
+            .find(|city| {
+                lookup_country(&city.country)
+                    .map(|country| country.code == country_code)
+                    .unwrap_or(false)
+            })
+            .cloned()
+            .or_else(|| {
+                representative_city_by_country_code(&country_code).map(|city| City {
+                    name: city.city_name.to_string(),
+                    code: city.city_code.to_string(),
+                    country: city.country_name.to_string(),
+                    timezone: city.timezone.to_string(),
+                    currency: city.currency_code.to_string(),
+                })
+            })
     }
 
-    pub fn representative_city_for_currency_code(&self, currency_code: &str) -> Option<&City> {
+    pub fn representative_city_for_currency_code(&self, currency_code: &str) -> Option<City> {
+        if let Some(city) = representative_city_by_currency_code(currency_code) {
+            return Some(City {
+                name: city.city_name.to_string(),
+                code: city.city_code.to_string(),
+                country: city.country_name.to_string(),
+                timezone: city.timezone.to_string(),
+                currency: city.currency_code.to_string(),
+            });
+        }
+
         let country_code = focal_country_code_for_currency(currency_code)?;
         self.representative_city_for_country_code(country_code)
     }
@@ -967,8 +990,7 @@ impl Config {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
+pub(crate) fn with_temp_config_dir_for_test<T>(test: impl FnOnce() -> T) -> T {
     use std::sync::{Mutex, OnceLock};
 
     fn test_lock() -> &'static Mutex<()> {
@@ -976,32 +998,35 @@ mod tests {
         LOCK.get_or_init(|| Mutex::new(()))
     }
 
-    fn with_temp_config_dir<T>(test: impl FnOnce() -> T) -> T {
-        let _guard = test_lock().lock().expect("test lock should be available");
-        let temp_dir = std::env::temp_dir().join(format!(
-            "nzi-cli-test-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("system time should be valid")
-                .as_nanos()
-        ));
-        fs::create_dir_all(&temp_dir).expect("temp dir should be created");
+    let _guard = test_lock().lock().expect("test lock should be available");
+    let temp_dir = std::env::temp_dir().join(format!(
+        "nzi-cli-test-{}",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system time should be valid")
+            .as_nanos()
+    ));
+    fs::create_dir_all(&temp_dir).expect("temp dir should be created");
 
-        // safe in tests because access is serialised by the mutex above.
-        unsafe {
-            std::env::set_var("NZI_CONFIG_DIR", &temp_dir);
-        }
-
-        let result = test();
-
-        // safe in tests because access is serialised by the mutex above.
-        unsafe {
-            std::env::remove_var("NZI_CONFIG_DIR");
-        }
-        let _ = fs::remove_dir_all(&temp_dir);
-
-        result
+    // safe in tests because access is serialised by the mutex above.
+    unsafe {
+        std::env::set_var("NZI_CONFIG_DIR", &temp_dir);
     }
+
+    let result = test();
+
+    // safe in tests because access is serialised by the mutex above.
+    unsafe {
+        std::env::remove_var("NZI_CONFIG_DIR");
+    }
+    let _ = fs::remove_dir_all(&temp_dir);
+
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 
     fn legacy_new_york_city() -> City {
         let mut city = City::boston();
@@ -1161,8 +1186,16 @@ mod tests {
     }
 
     #[test]
+    fn defaults_map_to_disabled() {
+        let config = Config::default();
+        let map = config.effective_map_settings();
+
+        assert!(!map.enabled);
+    }
+
+    #[test]
     fn saves_and_restores_latest_snapshot() {
-        with_temp_config_dir(|| {
+        with_temp_config_dir_for_test(|| {
             let mut config = Config::default();
             config.map = Some(MapConfig {
                 enabled: true,

@@ -180,25 +180,6 @@ impl TimeConverter {
         std::mem::swap(&mut self.from_city_code, &mut self.to_city_code);
     }
 
-    /// cycle the "to" city through available cities
-    pub fn cycle_to_city(&mut self, city_codes: &[String]) {
-        if city_codes.is_empty() {
-            return;
-        }
-        // find current position
-        let current_idx = city_codes
-            .iter()
-            .position(|c| c == &self.to_city_code)
-            .unwrap_or(0);
-        // move to next, skipping if it matches from_city
-        let mut next_idx = (current_idx + 1) % city_codes.len();
-        // skip the from city if we land on it
-        if city_codes[next_idx] == self.from_city_code {
-            next_idx = (next_idx + 1) % city_codes.len();
-        }
-        self.to_city_code = city_codes[next_idx].clone();
-    }
-
     pub fn increment_hour(&mut self) {
         self.input_hour = (self.input_hour + 1) % 24;
     }
