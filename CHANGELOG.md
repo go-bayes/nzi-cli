@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2
+- Refreshed the TLS dependency stack and explicit `reqwest` feature selection so the `rustls-webpki` advisory is cleared from the shipped lockfile.
+- `cargo audit` is now clean for the released dependency set.
+
 ## 0.3.1
 - Expanded the checked-in country and representative-city reference data to full current world coverage, with one default representative city per supported country.
 - Simplified the place-driven editor flow around one `Places` panel for anchor and target-city selection plus one `Actions` panel for draft lifecycle controls and map visibility.
