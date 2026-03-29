@@ -45,6 +45,7 @@
 11. Country coverage is now effectively complete, with one representative city per supported country.
 12. The next major constraint is no longer country coverage. It is whether the app should expose a broader city catalogue beyond one representative city per country.
 13. The expanded weather grid still has unresolved layout defects. Header cells are too tight, emoji rows do not use width consistently, and the rendered borders can look detached or stray depending on terminal width and whether the map is visible.
+14. The weather and exchange integrations are functionally acceptable, but the HTTP client paths are still lightly hardened. They rely on third-party API trust, do not yet call `error_for_status()`, and the exchange-rate response still uses loose JSON parsing rather than a typed schema.
 
 ## Resume here
 1. Decide whether target-city search should stay at one representative city per country or expand into a broader curated city catalogue.
@@ -55,6 +56,7 @@
 6. Rework the expanded weather grid so it uses one deterministic width model across map-on and map-off layouts, with column widths sized from actual content rather than trial-and-error spacing tweaks.
 7. Remove stray or detached-looking vertical borders in the expanded weather table by rendering the grid inside an exact content rect instead of letting it float inside a wider panel.
 8. Normalise emoji-cell rendering in the expanded weather grid so icon spacing is visually consistent across `Sunny`, `Pt cldy`, `Cloudy`, and other labels on terminals with uneven emoji display widths.
+9. Harden the Open-Meteo and ExchangeRate-API client paths with explicit HTTP status handling, stricter response parsing, and clearer separation between offline failures and upstream bad responses.
 
 ## Design principles
 1. One selection model should drive both time and currency.
@@ -187,6 +189,8 @@
 4. Remove stale references to `/currency` as a separate FX configuration surface.
 5. Refactor the expanded weather grid into a single width-aware renderer with shared fit checks for map-on and map-off layouts.
 6. Add UI-level tests for weather-grid width budgeting, border generation, and icon-plus-label cell composition.
+7. Add `.error_for_status()` to third-party API calls and tighten upstream failure reporting.
+8. Replace loose exchange-rate JSON access with a typed response model and add tests for schema expectations and fallback behaviour.
 
 ### Phase 5 — Generated reference data
 1. Add `data/countries.csv` for canonical country and currency metadata.
