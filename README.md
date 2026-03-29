@@ -1,17 +1,17 @@
 # nzi
 
-A terminal dashboard for thinking about New Zealand and its place in the world, with NZ weather, an anchor city, target cities, aligned time and currency views, and an optional world map.
+A terminal dashboard for thinking about New Zealand and its place in the world, with NZ weather, an anchor city, target cities, aligned time and currency views, and an optional country-level world map.
 
 ![nzi static](images/nzi.png)
 
 ## Features
 
-- **NZ Weather** - Current conditions and 3-day forecast for NZ cities (Auckland, Wellington, Christchurch, Dunedin) with wttr-style grid view
+- **NZ Weather** - Current conditions and 3-day forecast for NZ cities (Auckland, Wellington, Christchurch, Dunedin) with a wttr-style grid and stable ASCII labels in the expanded table
 - **Places Model** - Choose one anchor city and an ordered list of target cities
 - **World Clocks** - Track time across representative cities without managing separate timezone lists
 - **Currency Converter** - Live exchange rates derived from the same target-city list used by time comparison
 - **Time Converter** - Convert times from the anchor city to the current target city
-- **Optional World Map** - Anchor-to-target routes with a map panel you can disable
+- **Optional World Map** - Country-level context shared by time and currency, with a map panel you can disable
 
 Of course, you can get this information from a browser, but it's much nicer from the comfort of the terminal (just type 'nzi'). 
 
@@ -152,18 +152,18 @@ timezone = "Pacific/Auckland"
 currency = "NZD"
 
 [home_city]
-name = "London"
-code = "LDN"
-country = "United Kingdom"
-timezone = "Europe/London"
-currency = "GBP"
-
-[[tracked_cities]]
 name = "Boston"
 code = "BOS"
 country = "USA"
 timezone = "America/New_York"
 currency = "USD"
+
+[[tracked_cities]]
+name = "London"
+code = "LDN"
+country = "United Kingdom"
+timezone = "Europe/London"
+currency = "GBP"
 
 # ... more cities
 
@@ -179,8 +179,8 @@ anchor_city_code = "WLG"
 target_city_codes = ["BOS", "LDN", "TYO"]
 
 [map]
-enabled = true
-mode = "route"
+enabled = false
+mode = "countries"
 # focal_country_code = "GBR"
 # focus_city_code = "BOS"
 # focus_country_codes = ["USA", "GBR"]
@@ -198,6 +198,8 @@ Auckland, Wellington, Christchurch, Dunedin
 
 ### World Cities (Time/Currency)
 Representative cities drawn from the built-in catalogue, one per country and timezone combination where practical. By default this includes Boston, London, Los Angeles, Austin, Paris, Berlin, Sydney, Tokyo, Singapore, Kuala Lumpur, Rio, Addis Ababa, Dhaka, and Beijing.
+
+The optional world map is intentionally lighter than the time panel detail. Both `Time` and `Currency` now use country-level markers, so cities in the same country share the same world-map location.
 
 ## Requirements
 

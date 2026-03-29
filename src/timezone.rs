@@ -1,26 +1,99 @@
 //! time zone handling and conversion module
-//! supports any timezone via chrono-tz
+//! supports iana timezones and fixed utc offsets
 
-use chrono::{DateTime, FixedOffset, Local, LocalResult, Offset, TimeZone, Timelike, Utc};
+use chrono::{
+    DateTime, FixedOffset, Local, LocalResult, NaiveDateTime, Offset, TimeZone, Timelike, Utc,
+};
 use chrono_tz::Tz;
 
 use crate::config::City;
+
+#[derive(Debug, Clone)]
+pub(crate) enum ParsedTimezone {
+    Iana(Tz),
+    Fixed(FixedOffset),
+}
+
+impl ParsedTimezone {
+    fn current_datetime(&self) -> DateTime<FixedOffset> {
+        let utc_now = Utc::now();
+        match self {
+            Self::Iana(timezone) => utc_now.with_timezone(timezone).fixed_offset(),
+            Self::Fixed(offset) => utc_now.with_timezone(offset),
+        }
+    }
+
+    fn from_local_datetime(
+        &self,
+        naive_local: &NaiveDateTime,
+    ) -> LocalResult<DateTime<FixedOffset>> {
+        match self {
+            Self::Iana(timezone) => match timezone.from_local_datetime(naive_local) {
+                LocalResult::Single(datetime) => LocalResult::Single(datetime.fixed_offset()),
+                LocalResult::Ambiguous(first, second) => {
+                    LocalResult::Ambiguous(first.fixed_offset(), second.fixed_offset())
+                }
+                LocalResult::None => LocalResult::None,
+            },
+            Self::Fixed(offset) => offset.from_local_datetime(naive_local),
+        }
+    }
+
+    fn convert_datetime(&self, datetime: &DateTime<FixedOffset>) -> DateTime<FixedOffset> {
+        match self {
+            Self::Iana(timezone) => datetime.with_timezone(timezone).fixed_offset(),
+            Self::Fixed(offset) => datetime.with_timezone(offset),
+        }
+    }
+}
+
+pub(crate) fn parse_city_timezone(value: &str) -> Option<ParsedTimezone> {
+    let value = value.trim();
+    value
+        .parse::<Tz>()
+        .map(ParsedTimezone::Iana)
+        .ok()
+        .or_else(|| parse_fixed_utc_offset(value).map(ParsedTimezone::Fixed))
+}
+
+fn parse_fixed_utc_offset(value: &str) -> Option<FixedOffset> {
+    if value == "UTC" {
+        return FixedOffset::east_opt(0);
+    }
+
+    let suffix = value.strip_prefix("UTC")?;
+    let (sign, remainder) = match suffix.chars().next()? {
+        '+' => (1, &suffix[1..]),
+        '-' => (-1, &suffix[1..]),
+        _ => return None,
+    };
+
+    let (hours, minutes) = remainder.split_once(':')?;
+    let hours: i32 = hours.parse().ok()?;
+    let minutes: i32 = minutes.parse().ok()?;
+    if !(0..=23).contains(&hours) || !(0..=59).contains(&minutes) {
+        return None;
+    }
+
+    let total_seconds = sign * (hours * 3600 + minutes * 60);
+    FixedOffset::east_opt(total_seconds)
+}
 
 /// time information for a city
 #[derive(Debug, Clone)]
 pub struct CityTime {
     pub city_name: String,
     pub city_code: String,
-    pub datetime: DateTime<Tz>,
+    timezone: ParsedTimezone,
+    pub datetime: DateTime<FixedOffset>,
     pub offset_hours: f32,
 }
 
 impl CityTime {
     /// create a new city time from a city configuration
     pub fn from_city(city: &City) -> Option<Self> {
-        let tz: Tz = city.timezone.parse().ok()?;
-        let utc_now = Utc::now();
-        let datetime = utc_now.with_timezone(&tz);
+        let timezone = parse_city_timezone(&city.timezone)?;
+        let datetime = timezone.current_datetime();
 
         // calculate offset in hours using the fixed offset
         let fixed: FixedOffset = datetime.offset().fix();
@@ -30,6 +103,7 @@ impl CityTime {
         Some(Self {
             city_name: city.name.clone(),
             city_code: city.code.clone(),
+            timezone,
             datetime,
             offset_hours,
         })
@@ -92,12 +166,10 @@ impl TimezoneService {
         let from_city = self.get_city_time(from_city_code)?;
         let to_city = self.get_city_time(to_city_code)?;
 
-        let from_tz = from_city.datetime.timezone();
-        let to_tz = to_city.datetime.timezone();
         let from_date = from_city.datetime.date_naive();
         let naive_local = from_date.and_hms_opt(hour, minute, 0)?;
 
-        let from_datetime = match from_tz.from_local_datetime(&naive_local) {
+        let from_datetime = match from_city.timezone.from_local_datetime(&naive_local) {
             LocalResult::Single(dt) => dt,
             LocalResult::Ambiguous(first, second) => {
                 // prefer the earlier (usually standard) offset when ambiguous
@@ -112,7 +184,7 @@ impl TimezoneService {
             LocalResult::None => return None, // skipped hour (spring forward)
         };
 
-        let target = from_datetime.with_timezone(&to_tz);
+        let target = to_city.timezone.convert_datetime(&from_datetime);
         let day_offset = target
             .date_naive()
             .signed_duration_since(from_datetime.date_naive())
@@ -318,5 +390,42 @@ impl TimeConverter {
                 _ => self.format_input_time(),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_city(code: &str, name: &str, timezone: &str) -> City {
+        City {
+            name: name.to_string(),
+            code: code.to_string(),
+            country: "Test".to_string(),
+            timezone: timezone.to_string(),
+            currency: "TST".to_string(),
+        }
+    }
+
+    #[test]
+    fn city_time_supports_fixed_utc_offsets() {
+        let city = test_city("KOR", "Seoul", "UTC+09:00");
+
+        let city_time = CityTime::from_city(&city).expect("fixed offset should parse");
+
+        assert_eq!(city_time.datetime.offset().local_minus_utc(), 9 * 3600);
+        assert_eq!(city_time.offset_hours, 9.0);
+    }
+
+    #[test]
+    fn timezone_service_converts_fixed_offset_cities() {
+        let seoul = test_city("KOR", "Seoul", "UTC+09:00");
+        let london = test_city("UTC", "UTC", "UTC");
+        let mut service = TimezoneService::new();
+        service.update(&[&seoul, &london]);
+
+        let converted = service.convert_time("KOR", "UTC", 9, 30);
+
+        assert_eq!(converted, Some((0, 30, 0)));
     }
 }

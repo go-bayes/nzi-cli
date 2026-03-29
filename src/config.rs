@@ -15,6 +15,7 @@ use crate::reference::{
     normalise_currency_code, representative_city_by_country_code,
     representative_city_by_currency_code,
 };
+use crate::timezone::parse_city_timezone;
 
 /// city configuration with timezone and currency info
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -279,7 +280,7 @@ impl Default for MapMode {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MapConfig {
-    #[serde(default = "default_true")]
+    #[serde(default)]
     pub enabled: bool,
     #[serde(default)]
     pub mode: MapMode,
@@ -904,7 +905,7 @@ impl Config {
                 bail!("duplicate city code: {}", code);
             }
 
-            city.timezone.parse::<chrono_tz::Tz>().with_context(|| {
+            parse_city_timezone(&city.timezone).with_context(|| {
                 format!("invalid timezone for {}: {}", city.name, city.timezone)
             })?;
 
@@ -1162,6 +1163,20 @@ mod tests {
     }
 
     #[test]
+    fn validates_fixed_utc_offset_timezones() {
+        let mut config = Config::default();
+        config.tracked_cities.push(City {
+            name: "Seoul".to_string(),
+            code: "KOR".to_string(),
+            country: "South Korea".to_string(),
+            timezone: "UTC+09:00".to_string(),
+            currency: "KRW".to_string(),
+        });
+
+        config.validate().expect("fixed utc offset should validate");
+    }
+
+    #[test]
     fn derives_currency_pairs_from_country_codes() {
         let mut config = Config::default();
         config.currency = Some(CurrencyConfig {
@@ -1207,6 +1222,16 @@ mod tests {
         let map = config.effective_map_settings();
 
         assert!(!map.enabled);
+    }
+
+    #[test]
+    fn deserialised_map_without_enabled_defaults_to_disabled() {
+        let mut raw = toml::to_string(&Config::default()).expect("config should serialise");
+        raw.push_str("\n[map]\nmode = \"countries\"\n");
+
+        let parsed: Config = toml::from_str(&raw).expect("config should parse");
+
+        assert_eq!(parsed.map.as_ref().map(|map| map.enabled), Some(false));
     }
 
     #[test]

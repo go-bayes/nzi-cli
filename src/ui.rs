@@ -11,16 +11,21 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Clear, Paragraph, Wrap},
 };
 
-use unicode_width::UnicodeWidthStr;
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::app::{App, ConfigTab, Focus, InputMode};
 use crate::config::City;
 use crate::map::{NZ_CITIES, NzMapCanvas, Sparkles, WorldMapCanvas, WorldMarker};
-use crate::reference::{country_by_code, focal_country_code_for_currency};
+use crate::reference::{country_by_code, focal_country_code_for_currency, lookup_country};
 use crate::theme::{Theme, catppuccin};
 use crate::timezone::CityTime;
 use crate::weather::{city_coords_by_code, city_coords_by_name};
 
+const WEATHER_GRID_CELL_WIDTH: usize = 18;
+const WEATHER_GRID_COLUMNS: usize = 4;
+const WEATHER_GRID_WIDTH: u16 =
+    (WEATHER_GRID_CELL_WIDTH * WEATHER_GRID_COLUMNS + WEATHER_GRID_COLUMNS + 1) as u16;
+const WEATHER_EXPANDED_MIN_HEIGHT: u16 = 14;
 /// main ui rendering function
 pub fn draw(frame: &mut Frame, app: &App) {
     let area = frame.area();
@@ -250,7 +255,11 @@ fn config_editor_action_lines(selected: usize, map_enabled: bool) -> Vec<Line<'s
         Line::from(""),
         config_editor_row(selected == 0, "Apply draft", "Save and close"),
         config_editor_row(selected == 1, "Discard draft", "Drop unsaved changes"),
-        config_editor_row(selected == 2, "Reset draft", "Replace with package defaults"),
+        config_editor_row(
+            selected == 2,
+            "Reset draft",
+            "Replace with package defaults",
+        ),
         config_editor_row(
             selected == 3,
             "Reload from disk",
@@ -295,7 +304,11 @@ fn config_editor_selected_line_index(
     }
 }
 
-fn centered_scroll_offset(total_lines: usize, viewport_lines: usize, selected_line: usize) -> usize {
+fn centered_scroll_offset(
+    total_lines: usize,
+    viewport_lines: usize,
+    selected_line: usize,
+) -> usize {
     if viewport_lines == 0 || total_lines <= viewport_lines {
         return 0;
     }
@@ -752,14 +765,8 @@ fn draw_content(frame: &mut Frame, area: Rect, app: &App) {
 
     // decide whether expanded grid can fit; otherwise fall back to compact
     let mut use_expanded = app.weather_expanded;
-    if use_expanded {
-        // allow expanded view on smaller terminals; fall back only when truly too small
-        let rhs_est_width = area.width.saturating_mul(62) / 100; // matches expanded split
-        let min_grid_w = 40;
-        let min_grid_h = 10;
-        if rhs_est_width < min_grid_w || area.height < min_grid_h {
-            use_expanded = false;
-        }
+    if use_expanded && !weather_grid_can_fit(expanded_weather_panel_area(area, true)) {
+        use_expanded = false;
     }
 
     if use_expanded {
@@ -767,8 +774,8 @@ fn draw_content(frame: &mut Frame, area: Rect, app: &App) {
         let body = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([
-                Constraint::Percentage(38), // map
-                Constraint::Percentage(62), // info panels
+                Constraint::Percentage(33), // map
+                Constraint::Percentage(67), // info panels
             ])
             .split(area);
 
@@ -839,7 +846,7 @@ fn draw_content(frame: &mut Frame, area: Rect, app: &App) {
 
 fn draw_content_without_map(frame: &mut Frame, area: Rect, app: &App) {
     let mut use_expanded = app.weather_expanded;
-    if use_expanded && area.height < 14 {
+    if use_expanded && !weather_grid_can_fit(expanded_weather_panel_area(area, false)) {
         use_expanded = false;
     }
 
@@ -896,6 +903,51 @@ fn styled_block(title: &str, focused: bool) -> Block<'static> {
                 Theme::block_title()
             },
         ))
+}
+
+fn expanded_weather_panel_area(area: Rect, map_enabled: bool) -> Rect {
+    if map_enabled {
+        let body = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(33), Constraint::Percentage(67)])
+            .split(area);
+
+        let rhs_height = body[1].height;
+        let min_bottom = 7;
+        let min_weather = WEATHER_EXPANDED_MIN_HEIGHT;
+
+        let mut weather_height = rhs_height.saturating_sub(min_bottom);
+        if weather_height < min_weather {
+            weather_height = rhs_height.saturating_sub(min_bottom / 2);
+        }
+
+        let mut bottom_height = rhs_height.saturating_sub(weather_height);
+        if bottom_height < min_bottom && rhs_height > min_bottom {
+            bottom_height = min_bottom.min(rhs_height);
+            weather_height = rhs_height.saturating_sub(bottom_height);
+        }
+
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Length(weather_height),
+                Constraint::Length(bottom_height),
+            ])
+            .split(body[1])[0]
+    } else {
+        Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([
+                Constraint::Min(WEATHER_EXPANDED_MIN_HEIGHT),
+                Constraint::Length(7),
+            ])
+            .split(area)[0]
+    }
+}
+
+fn weather_grid_can_fit(panel_area: Rect) -> bool {
+    panel_area.width.saturating_sub(2) >= WEATHER_GRID_WIDTH
+        && panel_area.height.saturating_sub(2) >= WEATHER_EXPANDED_MIN_HEIGHT
 }
 
 /// draw the new zealand map panel with canvas/braille rendering
@@ -960,6 +1012,11 @@ fn world_marker_for_currency(currency: &str) -> Option<WorldMarker> {
     world_marker_for_country_code(country_code)
 }
 
+fn world_marker_for_city_country(city: &City) -> Option<WorldMarker> {
+    let country = lookup_country(&city.country)?;
+    world_marker_for_country_code(country.code)
+}
+
 fn configured_world_map_markers(
     app: &App,
 ) -> (Option<WorldMarker>, Option<WorldMarker>, &'static str) {
@@ -980,7 +1037,11 @@ fn configured_world_map_markers(
         .map(String::as_str)
         .and_then(world_marker_for_country_code);
 
-    (focal_country, extra_country.or(first_target_city), "Countries")
+    (
+        focal_country,
+        extra_country.or(first_target_city),
+        "Countries",
+    )
 }
 
 fn configured_map_summary(app: &App) -> String {
@@ -1015,9 +1076,9 @@ fn world_map_markers(
         ),
         Focus::TimeConvert => (
             app.city_by_code(&app.time_converter.from_city_code)
-                .and_then(world_marker_for_city),
+                .and_then(world_marker_for_city_country),
             app.city_by_code(&app.time_converter.to_city_code)
-                .and_then(world_marker_for_city),
+                .and_then(world_marker_for_city_country),
             "Time",
         ),
         Focus::Map => configured_world_map_markers(app),
@@ -1144,7 +1205,7 @@ fn draw_weather_detail(frame: &mut Frame, area: Rect, app: &App) {
                 crate::weather::WeatherIcon::Unknown => "❓",
             };
             lines.push(Line::from(vec![
-                Span::styled(format!("    {} ", condition_emoji), Style::default()),
+                Span::styled(format!("    {}", condition_emoji), Style::default()),
                 Span::styled(&w.description, Style::default().fg(catppuccin::SUBTEXT1)),
             ]));
 
@@ -1413,7 +1474,7 @@ fn wind_arrow(dir: &str) -> &'static str {
 fn wttr_desc(icon: crate::weather::WeatherIcon) -> &'static str {
     match icon {
         crate::weather::WeatherIcon::Sunny => "Sunny",
-        crate::weather::WeatherIcon::PartlyCloudy => "Pt cldy",
+        crate::weather::WeatherIcon::PartlyCloudy => "Pt cld",
         crate::weather::WeatherIcon::Cloudy => "Cloudy",
         crate::weather::WeatherIcon::Fog => "Fog",
         crate::weather::WeatherIcon::Drizzle => "Drizzle",
@@ -1422,17 +1483,6 @@ fn wttr_desc(icon: crate::weather::WeatherIcon) -> &'static str {
         crate::weather::WeatherIcon::Snow => "Snow",
         crate::weather::WeatherIcon::Thunderstorm => "Thunder",
         crate::weather::WeatherIcon::Unknown => "Unknown",
-    }
-}
-
-/// pad icon to a target display width (handles wide emoji)
-fn pad_icon(icon: &str, target: usize) -> String {
-    let width = UnicodeWidthStr::width(icon);
-    if width >= target {
-        icon.to_string()
-    } else {
-        let padding = " ".repeat(target.saturating_sub(width));
-        format!("{}{}", icon, padding)
     }
 }
 
@@ -1447,6 +1497,59 @@ fn center_pad(content: &str, width: usize) -> String {
         let right = total - left;
         format!("{}{}{}", " ".repeat(left), content, " ".repeat(right))
     }
+}
+
+fn center_fill(content: &str, width: usize, fill: char) -> String {
+    let w = UnicodeWidthStr::width(content);
+    if w >= width {
+        content.to_string()
+    } else {
+        let total = width - w;
+        let left = total / 2;
+        let right = total - left;
+        format!(
+            "{}{}{}",
+            fill.to_string().repeat(left),
+            content,
+            fill.to_string().repeat(right)
+        )
+    }
+}
+
+fn truncate_display(content: &str, width: usize) -> String {
+    let mut rendered = String::new();
+    let mut used = 0;
+
+    for ch in content.chars() {
+        let ch_width = UnicodeWidthChar::width(ch).unwrap_or(0);
+        if used + ch_width > width {
+            break;
+        }
+        rendered.push(ch);
+        used += ch_width;
+    }
+
+    rendered
+}
+
+fn pad_display_right(content: &str, width: usize) -> String {
+    let rendered = truncate_display(content, width);
+    let used = UnicodeWidthStr::width(rendered.as_str());
+    format!("{}{}", rendered, " ".repeat(width.saturating_sub(used)))
+}
+
+fn text_cell(content: &str) -> String {
+    pad_display_right(content, WEATHER_GRID_CELL_WIDTH)
+}
+
+fn weather_desc_cell(label: &str) -> String {
+    text_cell(label)
+}
+
+fn grid_rule(left: &str, mid: &str, right: &str, fill: char) -> String {
+    let cell = fill.to_string().repeat(WEATHER_GRID_CELL_WIDTH);
+    let middle = std::iter::repeat_n(cell.as_str(), WEATHER_GRID_COLUMNS).collect::<Vec<_>>();
+    format!("{left}{}{right}", middle.join(mid))
 }
 
 fn push_grid_line(lines: &mut Vec<Line<'static>>, padding: usize, spans: Vec<Span<'static>>) {
@@ -1465,7 +1568,7 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    if inner.height < 6 || inner.width < 40 {
+    if !weather_grid_can_fit(area) {
         return;
     }
 
@@ -1478,13 +1581,9 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
         Some(w) => {
             let mut lines: Vec<Line> = vec![];
             let border = Style::default().fg(catppuccin::SURFACE2);
-            let grid_width: u16 = 57;
+            let grid_width = WEATHER_GRID_WIDTH;
             let is_stale_or_offline = w.is_stale() || app.weather_error.is_some();
-            let grid_padding = if inner.width > grid_width {
-                ((inner.width - grid_width) / 2) as usize
-            } else {
-                0
-            };
+            let grid_padding = 0;
 
             // current conditions header with ASCII art (wttr style)
             let current_art = weather_ascii_art(w.icon, w.is_day);
@@ -1575,14 +1674,13 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
                 };
 
                 // day header row (centred above columns)
-                // keep widths consistent with 4×13-char columns + 5 pipes (57 total)
                 push_grid_line(
                     &mut lines,
                     grid_padding,
                     vec![
                         Span::styled("┌", border),
                         Span::styled(
-                            format!("{:─^55}", format!(" {} ", day_header)),
+                            center_fill(&format!(" {} ", day_header), grid_width as usize - 2, '─'),
                             Style::default().fg(catppuccin::TEXT),
                         ),
                         Span::styled("┐", border),
@@ -1596,28 +1694,28 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
                     vec![
                         Span::styled("│", border),
                         Span::styled(
-                            "   Morning   ",
+                            center_pad("Morning", WEATHER_GRID_CELL_WIDTH),
                             Style::default()
                                 .fg(catppuccin::PEACH)
                                 .add_modifier(Modifier::BOLD),
                         ),
                         Span::styled("│", border),
                         Span::styled(
-                            "    Noon     ",
+                            center_pad("Noon", WEATHER_GRID_CELL_WIDTH),
                             Style::default()
                                 .fg(catppuccin::YELLOW)
                                 .add_modifier(Modifier::BOLD),
                         ),
                         Span::styled("│", border),
                         Span::styled(
-                            "   Evening   ",
+                            center_pad("Evening", WEATHER_GRID_CELL_WIDTH),
                             Style::default()
                                 .fg(catppuccin::MAUVE)
                                 .add_modifier(Modifier::BOLD),
                         ),
                         Span::styled("│", border),
                         Span::styled(
-                            "    Night    ",
+                            center_pad("Night", WEATHER_GRID_CELL_WIDTH),
                             Style::default()
                                 .fg(catppuccin::LAVENDER)
                                 .add_modifier(Modifier::BOLD),
@@ -1630,30 +1728,22 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
                 push_grid_line(
                     &mut lines,
                     grid_padding,
-                    vec![Span::styled(
-                        "├─────────────┼─────────────┼─────────────┼─────────────┤",
-                        border,
-                    )],
+                    vec![Span::styled(grid_rule("├", "┼", "┤", '─'), border)],
                 );
 
-                // content row: icon + description
+                // content row: description
                 let mut desc_spans = vec![Span::styled("│", border)];
                 for target in &period_order {
                     if let Some(p) = day.periods.iter().find(|p| {
                         std::mem::discriminant(&p.period) == std::mem::discriminant(target)
                     }) {
-                        let is_day = matches!(target, TimeOfDay::Morning | TimeOfDay::Noon);
-                        let icon = p.icon.icon(is_day);
                         let desc = wttr_desc(p.icon);
-                        // pad icon to align with text columns
-                        let icon_padded = pad_icon(icon, 2);
-                        let cell = format!("{} {}", icon_padded, &desc[..desc.len().min(9)]);
                         desc_spans.push(Span::styled(
-                            center_pad(&cell, 13),
+                            weather_desc_cell(desc),
                             Style::default().fg(catppuccin::TEXT),
                         ));
                     } else {
-                        desc_spans.push(Span::styled(center_pad("--", 13), Theme::text_muted()));
+                        desc_spans.push(Span::styled(text_cell("--"), Theme::text_muted()));
                     }
                     desc_spans.push(Span::styled("│", border));
                 }
@@ -1675,11 +1765,11 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
                             catppuccin::SAPPHIRE
                         };
                         temp_spans.push(Span::styled(
-                            center_pad(&format!("{} °C", p.temp), 13),
+                            text_cell(&format!("{} °C", p.temp)),
                             Style::default().fg(temp_color),
                         ));
                     } else {
-                        temp_spans.push(Span::styled(center_pad("--", 13), Theme::text_muted()));
+                        temp_spans.push(Span::styled(text_cell("--"), Theme::text_muted()));
                     }
                     temp_spans.push(Span::styled("│", border));
                 }
@@ -1700,21 +1790,18 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
                         };
                         let wind_arrow = wind_arrow(&p.wind_dir);
                         wind_spans.push(Span::styled(
-                            center_pad(&format!("{} {} km/h", wind_arrow, p.wind), 13),
+                            text_cell(&format!("{} {} km/h", wind_arrow, p.wind)),
                             Style::default().fg(wind_color),
                         ));
                     } else {
-                        wind_spans.push(Span::styled(center_pad("--", 13), Theme::text_muted()));
+                        wind_spans.push(Span::styled(text_cell("--"), Theme::text_muted()));
                     }
                     wind_spans.push(Span::styled("│", border));
                 }
                 push_grid_line(&mut lines, grid_padding, wind_spans);
 
                 // bottom of day section
-                let bottom = Span::styled(
-                    "└─────────────┴─────────────┴─────────────┴─────────────┘",
-                    border,
-                );
+                let bottom = Span::styled(grid_rule("└", "┴", "┘", '─'), border);
                 push_grid_line(&mut lines, grid_padding, vec![bottom]);
             }
 
@@ -1735,7 +1822,9 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
             ]));
 
             let para = Paragraph::new(lines);
-            frame.render_widget(para, inner);
+            let content_area =
+                Rect::new(inner.x, inner.y, grid_width.min(inner.width), inner.height);
+            frame.render_widget(para, content_area);
         }
         None => {
             // show loading or error state
@@ -1768,8 +1857,85 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
             }
 
             let para = Paragraph::new(lines);
-            frame.render_widget(para, inner);
+            let content_area = Rect::new(
+                inner.x,
+                inner.y,
+                WEATHER_GRID_WIDTH.min(inner.width),
+                inner.height,
+            );
+            frame.render_widget(para, content_area);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::app::App;
+    use crate::config::Config;
+
+    #[test]
+    fn weather_desc_cell_respects_display_width() {
+        let cell = weather_desc_cell("Pt cld");
+
+        assert_eq!(
+            UnicodeWidthStr::width(cell.as_str()),
+            WEATHER_GRID_CELL_WIDTH
+        );
+        assert!(cell.starts_with("Pt cld"));
+    }
+
+    #[test]
+    fn weather_grid_fit_uses_inner_panel_width() {
+        assert!(weather_grid_can_fit(Rect::new(
+            0,
+            0,
+            WEATHER_GRID_WIDTH + 2,
+            WEATHER_EXPANDED_MIN_HEIGHT + 2,
+        )));
+        assert!(!weather_grid_can_fit(Rect::new(
+            0,
+            0,
+            WEATHER_GRID_WIDTH + 1,
+            WEATHER_EXPANDED_MIN_HEIGHT + 2,
+        )));
+    }
+
+    #[test]
+    fn time_focus_world_map_uses_country_markers() {
+        let mut app = App::new(Config::default());
+        app.time_converter.from_city_code = "LAX".to_string();
+        app.time_converter.to_city_code = "BOS".to_string();
+
+        let (primary, secondary, label) = world_map_markers(&app, Focus::TimeConvert);
+
+        assert_eq!(label, "Time");
+        assert_eq!(
+            primary.as_ref().map(|marker| marker.label.as_str()),
+            Some("USA")
+        );
+        assert_eq!(
+            secondary.as_ref().map(|marker| marker.label.as_str()),
+            Some("USA")
+        );
+    }
+
+    #[test]
+    fn time_focus_world_map_distinguishes_countries() {
+        let mut app = App::new(Config::default());
+        app.time_converter.from_city_code = "WLG".to_string();
+        app.time_converter.to_city_code = "TYO".to_string();
+
+        let (primary, secondary, _) = world_map_markers(&app, Focus::TimeConvert);
+
+        assert_eq!(
+            primary.as_ref().map(|marker| marker.label.as_str()),
+            Some("NZL")
+        );
+        assert_eq!(
+            secondary.as_ref().map(|marker| marker.label.as_str()),
+            Some("JPN")
+        );
     }
 }
 

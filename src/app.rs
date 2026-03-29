@@ -1847,8 +1847,8 @@ impl App {
     }
 
     fn apply_immediate_config_command(&mut self, action: CommandAction) -> Result<()> {
-        let status =
-            apply_command_action_to_config(&mut self.config, &action).map_err(|message| anyhow!(message))?;
+        let status = apply_command_action_to_config(&mut self.config, &action)
+            .map_err(|message| anyhow!(message))?;
 
         if let Some(draft) = self.config_draft.as_mut() {
             apply_command_action_to_config(draft, &action).map_err(|message| anyhow!(message))?;
@@ -1900,7 +1900,10 @@ impl App {
 
     fn reset_config_draft(&mut self) {
         let was_editing = self.config_draft.is_some();
-        let mut draft = self.config_draft.take().unwrap_or_else(|| self.config.clone());
+        let mut draft = self
+            .config_draft
+            .take()
+            .unwrap_or_else(|| self.config.clone());
         reset_places_to_package_defaults(&mut draft);
         self.config_draft = Some(draft);
         self.picker = None;
@@ -2055,10 +2058,7 @@ mod tests {
         apply_command_action_to_config(&mut config, &action)
             .expect("config mutation should succeed");
 
-        assert_eq!(
-            config.map.as_ref().map(|map| map.enabled),
-            Some(true)
-        );
+        assert_eq!(config.map.as_ref().map(|map| map.enabled), Some(true));
     }
 
     #[test]
@@ -2099,16 +2099,16 @@ mod tests {
         let mut config = Config::default();
         match choice {
             PickerChoice::MapEnabled { enabled, .. } => {
-                apply_command_action_to_config(&mut config, &CommandAction::SetMapEnabled { enabled })
-                    .expect("config mutation should succeed");
+                apply_command_action_to_config(
+                    &mut config,
+                    &CommandAction::SetMapEnabled { enabled },
+                )
+                .expect("config mutation should succeed");
             }
             other => panic!("unexpected picker choice: {other:?}"),
         }
 
-        assert_eq!(
-            config.map.as_ref().map(|map| map.enabled),
-            Some(false)
-        );
+        assert_eq!(config.map.as_ref().map(|map| map.enabled), Some(false));
     }
 
     #[test]
@@ -2668,6 +2668,30 @@ mod tests {
                 .map(|time| time.target_city_codes.clone()),
             Some(vec!["THR".to_string()])
         );
+    }
+
+    #[test]
+    fn applying_generated_city_with_fixed_offset_timezone_saves_successfully() {
+        with_temp_config_dir_for_test(|| {
+            let config = Config::default();
+            config.save().expect("default config should save");
+
+            let mut app = App::new(config);
+            app.open_config_editor();
+            app.add_target_city_to_draft("KOR")
+                .expect("generated representative city should add");
+            app.apply_config_draft()
+                .expect("draft with fixed offset timezone should save");
+
+            let saved = Config::load().expect("saved config should reload");
+            assert!(
+                saved
+                    .tracked_cities
+                    .iter()
+                    .any(|city| city.code.eq_ignore_ascii_case("KOR"))
+            );
+            assert_eq!(saved.effective_target_city_codes(), vec!["KOR".to_string()]);
+        });
     }
 
     #[test]

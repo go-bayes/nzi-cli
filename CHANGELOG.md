@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.3
+- Fixed representative-city timezone handling so generated cities with fixed UTC offsets such as Seoul can be added and saved without `invalid timezone` failures.
+- Made `map.enabled` default to off consistently, including partially specified `[map]` config blocks.
+- Standardised the world map to country-level markers for both the `Time` and `Currency` panels, keeping the map lightweight and consistent.
+- Reworked the expanded weather table to use wider columns, left-aligned plain-text cell content, and ASCII condition labels for stable terminal rendering.
+- Added coverage tests for fixed-offset timezone parsing, map-default behaviour, country-level time-map markers, and weather-grid width helpers.
+
 ## 0.3.2
 - Refreshed the TLS dependency stack and explicit `reqwest` feature selection so the `rustls-webpki` advisory is cleared from the shipped lockfile.
 - `cargo audit` is now clean for the released dependency set.

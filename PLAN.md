@@ -44,6 +44,7 @@
 10. The map now defaults to off, can be toggled from `/map` or `Actions`, disappears from the main layout when disabled, and is fixed to country-level rendering.
 11. Country coverage is now effectively complete, with one representative city per supported country.
 12. The next major constraint is no longer country coverage. It is whether the app should expose a broader city catalogue beyond one representative city per country.
+13. The expanded weather grid still has unresolved layout defects. Header cells are too tight, emoji rows do not use width consistently, and the rendered borders can look detached or stray depending on terminal width and whether the map is visible.
 
 ## Resume here
 1. Decide whether target-city search should stay at one representative city per country or expand into a broader curated city catalogue.
@@ -51,6 +52,9 @@
 3. Decide whether to expose a small visible indicator for the currently active target city across the time and currency panels.
 4. Keep `Esc` in the config editor as “close editor only”; do not silently discard the draft.
 5. Keep direct commands such as `/map` immediate, even when a draft exists, unless there is a strong reason to route them through the draft.
+6. Rework the expanded weather grid so it uses one deterministic width model across map-on and map-off layouts, with column widths sized from actual content rather than trial-and-error spacing tweaks.
+7. Remove stray or detached-looking vertical borders in the expanded weather table by rendering the grid inside an exact content rect instead of letting it float inside a wider panel.
+8. Normalise emoji-cell rendering in the expanded weather grid so icon spacing is visually consistent across `Sunny`, `Pt cldy`, `Cloudy`, and other labels on terminals with uneven emoji display widths.
 
 ## Design principles
 1. One selection model should drive both time and currency.
@@ -181,6 +185,8 @@
 2. Add editor-flow tests.
 3. Update README and usage text to match the simplified model.
 4. Remove stale references to `/currency` as a separate FX configuration surface.
+5. Refactor the expanded weather grid into a single width-aware renderer with shared fit checks for map-on and map-off layouts.
+6. Add UI-level tests for weather-grid width budgeting, border generation, and icon-plus-label cell composition.
 
 ### Phase 5 — Generated reference data
 1. Add `data/countries.csv` for canonical country and currency metadata.
