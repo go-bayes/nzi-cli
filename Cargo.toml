@@ -26,7 +26,7 @@ chrono = "0.4"
 chrono-tz = "0.10"
 
 # HTTP client for exchange rates and weather
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "default-tls", "charset", "http2", "system-proxy"] }
 serde_json = "1"
 
 # Error handling
