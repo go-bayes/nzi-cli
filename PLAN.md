@@ -32,24 +32,25 @@
 ## Current state
 1. Config draft, apply, discard, reset, reload, and restore already exist.
 2. Snapshot save and restore already exist.
-3. A visual `/config` editor already exists with `Places`, `Map`, and `Actions` tabs.
-4. Search-backed pickers already exist for country, currency, and map selections.
+3. A visual `/config` editor already exists with `Places` and `Actions`.
+4. Search-backed pickers already exist for anchor city, target city, country, currency, and map visibility.
 5. The current codebase still carries a few compatibility paths from the older model:
    - `time.city_codes`
    - `currency.country_codes`
 6. Reference data now comes from checked-in source files in `data/` and is generated at build time through `build.rs`.
-7. The editor now has a `Places` tab with anchor-city selection, target-city add/remove/reorder, country and currency helper flows, and per-section resets.
+7. The editor now has a `Places` tab with anchor-city selection, target-city add or remove or reorder, country and currency helper flows, and clearer on-panel guidance.
 8. `/currency` now follows the place model by resolving `currency -> country -> representative city -> target city`.
 9. Time and currency interactions are re-coupled and now follow the same active target city.
-10. The map now defaults to off, can be toggled from the editor, and disappears from the main layout when disabled.
-11. The next major constraint is data coverage, not interaction design.
+10. The map now defaults to off, can be toggled from `/map` or `Actions`, disappears from the main layout when disabled, and is fixed to country-level rendering.
+11. Country coverage is now effectively complete, with one representative city per supported country.
+12. The next major constraint is no longer country coverage. It is whether the app should expose a broader city catalogue beyond one representative city per country.
 
 ## Resume here
-1. Expand `data/countries.csv` from the current subset to full country coverage.
-2. Expand `data/representative_cities.json` so every supported country has one default representative city.
-3. Review shared-currency policy country by country, especially where one currency maps to several states.
-4. Decide whether to expose a small visible indicator for the currently active target city across the time and currency panels.
-5. Keep `Esc` in the config editor as “close editor only”; do not silently discard the draft.
+1. Decide whether target-city search should stay at one representative city per country or expand into a broader curated city catalogue.
+2. Review shared-currency policy country by country, especially where one currency maps to several states.
+3. Decide whether to expose a small visible indicator for the currently active target city across the time and currency panels.
+4. Keep `Esc` in the config editor as “close editor only”; do not silently discard the draft.
+5. Keep direct commands such as `/map` immediate, even when a draft exists, unless there is a strong reason to route them through the draft.
 
 ## Design principles
 1. One selection model should drive both time and currency.
@@ -125,22 +126,18 @@
 2. Rework the editor around the simplified model.
 3. Preferred tabs:
    - `Places`
-   - `Map`
    - `Actions`
 4. `Places` should own:
    - anchor city
    - target city list
    - optional helper actions for adding a country or currency by resolving to a city
-   - reset actions for anchor city and target-city list
-5. `Map` should own:
-   - map enabled or disabled
-   - any remaining NZ-specific map preferences
-6. `Actions` should keep:
+5. `Actions` should keep:
    - apply
    - discard
    - reset
    - reload
    - restore
+   - map visibility
 
 ## Tab responsibilities
 ### Places
@@ -151,15 +148,11 @@
 5. Offer a helper flow for “add country” or “add currency”, which resolves to a city, usually the capital.
 6. Keep country and currency helpers semantically aligned by resolving both through country to representative city.
 
-### Map
-1. Let the user opt out of the map entirely.
-2. If enabled, render maps as anchor city to target city routes.
-3. Do not expand into a general world-map focus model unless there is a strong later need.
-
 ### Actions
 1. Keep draft lifecycle controls in one place.
 2. Keep snapshot restore visible.
-3. Add snapshot browsing later if the single latest snapshot becomes limiting.
+3. Keep map visibility here rather than in a separate config tab.
+4. Add snapshot browsing later if the single latest snapshot becomes limiting.
 
 ## Implementation phases
 ### Phase 0 — Already done
@@ -181,7 +174,7 @@
 ### Phase 3 — Map simplification
 1. Add `map.enabled`.
 2. Let the user hide the map panel.
-3. Reduce map configuration to anchor-to-target behaviour.
+3. Reduce map configuration to a simple visibility toggle with country-level rendering.
 
 ### Phase 4 — Hardening
 1. Add migration tests.
@@ -209,6 +202,6 @@
 10. Each supported country resolves to one default representative city.
 
 ## Immediate next coding step
-1. Expand the generated reference data from the current subset to full intended country coverage.
-2. Ensure each supported country resolves to one curated representative city and one timezone anchor.
-3. Add more coverage tests around generated data completeness and shared-currency choices.
+1. Decide whether to keep one representative city per country or introduce a broader curated city list for target search.
+2. Add more coverage tests around shared-currency choices and command behaviour that should remain immediate.
+3. Keep tightening editor wording where the behaviour is correct but the panel is easy to misread.

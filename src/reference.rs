@@ -107,11 +107,30 @@ pub fn representative_city_by_country_code(
         .find(|city| city.country_code == code.as_str())
 }
 
+pub fn representative_city_by_city_code(
+    code: &str,
+) -> Option<&'static RepresentativeCityReference> {
+    let code = code.trim().to_uppercase();
+    REPRESENTATIVE_CITY_REFERENCES
+        .iter()
+        .find(|city| city.city_code == code.as_str())
+}
+
 pub fn representative_city_by_currency_code(
     code: &str,
 ) -> Option<&'static RepresentativeCityReference> {
     let country_code = focal_country_code_for_currency(code)?;
     representative_city_by_country_code(country_code)
+}
+
+pub fn search_representative_cities(query: &str) -> Vec<&'static RepresentativeCityReference> {
+    let query = query.trim().to_lowercase();
+    let mut matches: Vec<_> = REPRESENTATIVE_CITY_REFERENCES
+        .iter()
+        .filter(|city| matches_representative_city(city, &query))
+        .collect();
+    matches.sort_by_key(|city| representative_city_match_rank(city, &query));
+    matches
 }
 
 pub fn search_countries(query: &str) -> Vec<&'static CountryReference> {
@@ -196,6 +215,70 @@ fn currency_match_rank(currency: &CurrencyReference, query: &str) -> u8 {
     }
 }
 
+fn matches_representative_city(city: &RepresentativeCityReference, query: &str) -> bool {
+    if query.is_empty() {
+        return true;
+    }
+
+    city.city_code.to_lowercase().contains(query)
+        || city.city_name.to_lowercase().contains(query)
+        || city.country_name.to_lowercase().contains(query)
+        || country_by_code(city.country_code)
+            .map(|country| {
+                country
+                    .aliases
+                    .iter()
+                    .any(|alias| alias.to_lowercase().contains(query))
+            })
+            .unwrap_or(false)
+        || city.currency_code.to_lowercase().contains(query)
+        || currency_by_code(city.currency_code)
+            .map(|currency| {
+                currency.name.to_lowercase().contains(query)
+                    || currency
+                        .aliases
+                        .iter()
+                        .any(|alias| alias.to_lowercase().contains(query))
+            })
+            .unwrap_or(false)
+}
+
+fn representative_city_match_rank(city: &RepresentativeCityReference, query: &str) -> u8 {
+    if query.is_empty() {
+        return 5;
+    }
+    if city.city_code.eq_ignore_ascii_case(query) {
+        0
+    } else if city.city_name.eq_ignore_ascii_case(query) {
+        1
+    } else if city.country_name.eq_ignore_ascii_case(query)
+        || country_by_code(city.country_code)
+            .map(|country| {
+                country
+                    .aliases
+                    .iter()
+                    .any(|alias| alias.eq_ignore_ascii_case(query))
+            })
+            .unwrap_or(false)
+    {
+        2
+    } else if city.currency_code.eq_ignore_ascii_case(query)
+        || currency_by_code(city.currency_code)
+            .map(|currency| {
+                currency.name.eq_ignore_ascii_case(query)
+                    || currency
+                        .aliases
+                        .iter()
+                        .any(|alias| alias.eq_ignore_ascii_case(query))
+            })
+            .unwrap_or(false)
+    {
+        3
+    } else {
+        4
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -237,11 +320,57 @@ mod tests {
     }
 
     #[test]
+    fn searches_representative_cities_by_country_name() {
+        let cities = search_representative_cities("japan");
+        assert_eq!(cities.first().map(|city| city.city_code), Some("TYO"));
+    }
+
+    #[test]
+    fn searches_representative_cities_by_currency_alias() {
+        let cities = search_representative_cities("yen");
+        assert_eq!(cities.first().map(|city| city.city_code), Some("TYO"));
+    }
+
+    #[test]
+    fn searches_representative_cities_by_city_name() {
+        let cities = search_representative_cities("copenhagen");
+        assert_eq!(cities.first().map(|city| city.city_code), Some("CPH"));
+    }
+
+    #[test]
     fn looks_up_new_country_and_currency_entries() {
         let country = lookup_country("iran").expect("iran should resolve");
         let currency = lookup_currency("shekel").expect("shekel should resolve");
 
         assert_eq!(country.code, "IRN");
         assert_eq!(currency.code, "ILS");
+    }
+
+    #[test]
+    fn every_country_has_a_representative_city() {
+        for country in COUNTRY_REFERENCES {
+            let city = representative_city_by_country_code(country.code)
+                .unwrap_or_else(|| panic!("missing representative city for {}", country.code));
+            assert_eq!(city.country_code, country.code);
+        }
+    }
+
+    #[test]
+    fn every_currency_has_a_focal_country_and_representative_city() {
+        for currency in CURRENCY_REFERENCES {
+            let country = country_by_code(currency.focal_country_code).unwrap_or_else(|| {
+                panic!(
+                    "missing focal country {} for currency {}",
+                    currency.focal_country_code, currency.code
+                )
+            });
+            let city = representative_city_by_country_code(country.code).unwrap_or_else(|| {
+                panic!(
+                    "missing representative city for focal country {} of currency {}",
+                    country.code, currency.code
+                )
+            });
+            assert_eq!(city.country_code, country.code);
+        }
     }
 }

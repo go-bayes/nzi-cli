@@ -265,15 +265,15 @@ impl Default for CurrencyConfig {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum MapMode {
-    Route,
     Cities,
+    #[serde(alias = "route")]
     Countries,
     Both,
 }
 
 impl Default for MapMode {
     fn default() -> Self {
-        Self::Route
+        Self::Countries
     }
 }
 
@@ -295,7 +295,7 @@ impl Default for MapConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            mode: MapMode::Route,
+            mode: MapMode::Countries,
             focus_city_code: None,
             focus_country_codes: Vec::new(),
             focal_country_code: None,
@@ -608,11 +608,27 @@ impl Config {
 
     pub fn effective_map_settings(&self) -> MapConfig {
         let mut map = self.map.clone().unwrap_or_default();
+        map.mode = MapMode::Countries;
+        let anchor_code = self.effective_anchor_city_code();
+        map.focus_city_code = Some(anchor_code.clone());
 
-        if map.focal_country_code.is_none()
-            && let Some(country) = lookup_country(&self.current_city.country)
+        if let Some(anchor_city) = self
+            .all_cities()
+            .into_iter()
+            .find(|city| city.code.eq_ignore_ascii_case(&anchor_code))
+            && let Some(country) = lookup_country(&anchor_city.country)
         {
             map.focal_country_code = Some(country.code.to_string());
+        }
+
+        let mut derived_focus_country_codes = Vec::new();
+        for city in self.effective_target_cities() {
+            if let Some(country) = lookup_country(&city.country) {
+                Self::push_unique_code(&mut derived_focus_country_codes, country.code);
+            }
+        }
+        if !derived_focus_country_codes.is_empty() {
+            map.focus_country_codes = derived_focus_country_codes;
         }
 
         map

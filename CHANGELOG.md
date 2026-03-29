@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+- Expanded the checked-in country and representative-city reference data to full current world coverage, with one default representative city per supported country.
+- Simplified the place-driven editor flow around one `Places` panel for anchor and target-city selection plus one `Actions` panel for draft lifecycle controls and map visibility.
+- Fixed the target-city picker so it searches the saved catalogue plus generated representative-city defaults, with better scrolling and clearer `Places` instructions.
+- Simplified map behaviour to a show or hide toggle with country-level rendering only.
+- Fixed `/map` so show or hide changes apply immediately even if a config draft is still open in the background.
+- Added coverage tests to enforce representative-city completeness and immediate `/map` persistence.
+
 ## 0.3.0
 - Shifted the app to a place-driven model with one anchor city and an ordered target-city list shared by the time and currency panels.
 - Added a staged `/config` editor with `Places`, `Map`, and `Actions` tabs, plus draft apply, discard, reset, reload, and restore behaviour.

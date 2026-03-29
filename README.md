@@ -103,7 +103,7 @@ Type `/help` to show the help overlay.
 | `J/K` | Reorder target cities |
 | `Enter` | Activate selected row |
 | `a` | Add target city |
-| `x` | Remove selected target city or map focus country |
+| `x` | Remove selected target city |
 | `Esc` | Close editor and keep draft open |
 
 ### Picker Controls
@@ -127,14 +127,14 @@ Type `/help` to show the help overlay.
 | `/discard` | Discard the current config draft |
 | `/reset` | Reset the current draft to defaults |
 | `/restore` | Restore the latest saved snapshot into the draft |
-| `/country` or `/focus` | Open focal-country picker |
-| `/country <query>` | Set focal country by name, alias, or ISO-3 code |
+| `/country` or `/focus` | Open the focal-city-by-country picker |
+| `/country <query>` | Set the focal city through country lookup |
 | `/currency` | Open currency-to-place picker |
 | `/currency <query>` | Add a place by currency via country |
-| `/map` | Open map-mode picker |
-| `/map <route\|cities\|countries\|both>` | Set map mode directly |
+| `/map` | Open the map visibility picker |
+| `/map <on\|off>` | Show or hide the map |
 
-The bare `/country`, `/currency`, and `/map` commands open interactive search overlays. `/config` opens the staged editor, whose `Places` tab now drives the main workflow: anchor city, target cities, representative-city pickers, and country or currency helpers that resolve back to cities.
+The bare `/country`, `/currency`, and `/map` commands open interactive search overlays. `/config` opens the staged editor, whose `Places` tab now drives the main workflow: one anchor city, one ordered target-city list, optional map display, and country or currency helpers that resolve back to representative cities. The map no longer has an independent focal-country workflow in the editor.
 
 ## Configuration
 

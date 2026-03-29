@@ -1,27 +1,107 @@
 [
   {
-    "country_code": "NZL",
-    "city_code": "WLG",
-    "city_name": "Wellington",
-    "country_name": "New Zealand",
-    "timezone": "Pacific/Auckland",
-    "currency_code": "NZD"
+    "country_code": "ABW",
+    "city_code": "ABW",
+    "city_name": "Oranjestad",
+    "country_name": "Aruba",
+    "timezone": "UTC-04:00",
+    "currency_code": "AWG"
   },
   {
-    "country_code": "USA",
-    "city_code": "BOS",
-    "city_name": "Boston",
-    "country_name": "United States",
-    "timezone": "America/New_York",
+    "country_code": "AFG",
+    "city_code": "AFG",
+    "city_name": "Kabul",
+    "country_name": "Afghanistan",
+    "timezone": "UTC+04:30",
+    "currency_code": "AFN"
+  },
+  {
+    "country_code": "AGO",
+    "city_code": "AGO",
+    "city_name": "Luanda",
+    "country_name": "Angola",
+    "timezone": "UTC+01:00",
+    "currency_code": "AOA"
+  },
+  {
+    "country_code": "AIA",
+    "city_code": "AIA",
+    "city_name": "The Valley",
+    "country_name": "Anguilla",
+    "timezone": "UTC-04:00",
+    "currency_code": "XCD"
+  },
+  {
+    "country_code": "ALA",
+    "city_code": "ALA",
+    "city_name": "Mariehamn",
+    "country_name": "\u00c5land Islands",
+    "timezone": "UTC+02:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "ALB",
+    "city_code": "ALB",
+    "city_name": "Tirana",
+    "country_name": "Albania",
+    "timezone": "UTC+01:00",
+    "currency_code": "ALL"
+  },
+  {
+    "country_code": "AND",
+    "city_code": "AND",
+    "city_name": "Andorra la Vella",
+    "country_name": "Andorra",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "ARE",
+    "city_code": "ARE",
+    "city_name": "Abu Dhabi",
+    "country_name": "United Arab Emirates",
+    "timezone": "UTC+04:00",
+    "currency_code": "AED"
+  },
+  {
+    "country_code": "ARG",
+    "city_code": "ARG",
+    "city_name": "Buenos Aires",
+    "country_name": "Argentina",
+    "timezone": "UTC-03:00",
+    "currency_code": "ARS"
+  },
+  {
+    "country_code": "ARM",
+    "city_code": "ARM",
+    "city_name": "Yerevan",
+    "country_name": "Armenia",
+    "timezone": "UTC+04:00",
+    "currency_code": "AMD"
+  },
+  {
+    "country_code": "ASM",
+    "city_code": "ASM",
+    "city_name": "Pago Pago",
+    "country_name": "American Samoa",
+    "timezone": "UTC-11:00",
     "currency_code": "USD"
   },
   {
-    "country_code": "GBR",
-    "city_code": "LDN",
-    "city_name": "London",
-    "country_name": "United Kingdom",
-    "timezone": "Europe/London",
-    "currency_code": "GBP"
+    "country_code": "ATF",
+    "city_code": "ATF",
+    "city_name": "Port-aux-Fran\u00e7ais",
+    "country_name": "French Southern and Antarctic Lands",
+    "timezone": "UTC+05:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "ATG",
+    "city_code": "ATG",
+    "city_name": "Saint John's",
+    "country_name": "Antigua and Barbuda",
+    "timezone": "UTC-04:00",
+    "currency_code": "XCD"
   },
   {
     "country_code": "AUS",
@@ -32,60 +112,60 @@
     "currency_code": "AUD"
   },
   {
-    "country_code": "JPN",
-    "city_code": "TYO",
-    "city_name": "Tokyo",
-    "country_name": "Japan",
-    "timezone": "Asia/Tokyo",
-    "currency_code": "JPY"
-  },
-  {
-    "country_code": "SGP",
-    "city_code": "SIN",
-    "city_name": "Singapore",
-    "country_name": "Singapore",
-    "timezone": "Asia/Singapore",
-    "currency_code": "SGD"
-  },
-  {
-    "country_code": "MYS",
-    "city_code": "KL",
-    "city_name": "Kuala Lumpur",
-    "country_name": "Malaysia",
-    "timezone": "Asia/Kuala_Lumpur",
-    "currency_code": "MYR"
-  },
-  {
-    "country_code": "FRA",
-    "city_code": "PAR",
-    "city_name": "Paris",
-    "country_name": "France",
-    "timezone": "Europe/Paris",
+    "country_code": "AUT",
+    "city_code": "AUT",
+    "city_name": "Vienna",
+    "country_name": "Austria",
+    "timezone": "UTC+01:00",
     "currency_code": "EUR"
   },
   {
-    "country_code": "DEU",
-    "city_code": "BER",
-    "city_name": "Berlin",
-    "country_name": "Germany",
-    "timezone": "Europe/Berlin",
+    "country_code": "AZE",
+    "city_code": "AZE",
+    "city_name": "Baku",
+    "country_name": "Azerbaijan",
+    "timezone": "UTC+04:00",
+    "currency_code": "AZN"
+  },
+  {
+    "country_code": "BDI",
+    "city_code": "BDI",
+    "city_name": "Gitega",
+    "country_name": "Burundi",
+    "timezone": "UTC+02:00",
+    "currency_code": "BIF"
+  },
+  {
+    "country_code": "BEL",
+    "city_code": "BEL",
+    "city_name": "Brussels",
+    "country_name": "Belgium",
+    "timezone": "UTC+01:00",
     "currency_code": "EUR"
   },
   {
-    "country_code": "BRA",
-    "city_code": "RIO",
-    "city_name": "RIO",
-    "country_name": "Brazil",
-    "timezone": "America/Sao_Paulo",
-    "currency_code": "BRL"
+    "country_code": "BEN",
+    "city_code": "BEN",
+    "city_name": "Porto-Novo",
+    "country_name": "Benin",
+    "timezone": "UTC+01:00",
+    "currency_code": "XOF"
   },
   {
-    "country_code": "ETH",
-    "city_code": "ADD",
-    "city_name": "Addis Ababa",
-    "country_name": "Ethiopia",
-    "timezone": "Africa/Addis_Ababa",
-    "currency_code": "ETB"
+    "country_code": "BES",
+    "city_code": "BES",
+    "city_name": "Kralendijk",
+    "country_name": "Caribbean Netherlands",
+    "timezone": "UTC-04:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "BFA",
+    "city_code": "BFA",
+    "city_name": "Ouagadougou",
+    "country_name": "Burkina Faso",
+    "timezone": "UTC",
+    "currency_code": "XOF"
   },
   {
     "country_code": "BGD",
@@ -96,12 +176,684 @@
     "currency_code": "BDT"
   },
   {
+    "country_code": "BGR",
+    "city_code": "BGR",
+    "city_name": "Sofia",
+    "country_name": "Bulgaria",
+    "timezone": "UTC+02:00",
+    "currency_code": "BGN"
+  },
+  {
+    "country_code": "BHR",
+    "city_code": "BHR",
+    "city_name": "Manama",
+    "country_name": "Bahrain",
+    "timezone": "UTC+03:00",
+    "currency_code": "BHD"
+  },
+  {
+    "country_code": "BHS",
+    "city_code": "BHS",
+    "city_name": "Nassau",
+    "country_name": "Bahamas",
+    "timezone": "UTC-05:00",
+    "currency_code": "BSD"
+  },
+  {
+    "country_code": "BIH",
+    "city_code": "BIH",
+    "city_name": "Sarajevo",
+    "country_name": "Bosnia and Herzegovina",
+    "timezone": "UTC+01:00",
+    "currency_code": "BAM"
+  },
+  {
+    "country_code": "BLM",
+    "city_code": "BLM",
+    "city_name": "Gustavia",
+    "country_name": "Saint Barth\u00e9lemy",
+    "timezone": "UTC-04:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "BLR",
+    "city_code": "BLR",
+    "city_name": "Minsk",
+    "country_name": "Belarus",
+    "timezone": "UTC+03:00",
+    "currency_code": "BYN"
+  },
+  {
+    "country_code": "BLZ",
+    "city_code": "BLZ",
+    "city_name": "Belmopan",
+    "country_name": "Belize",
+    "timezone": "UTC-06:00",
+    "currency_code": "BZD"
+  },
+  {
+    "country_code": "BMU",
+    "city_code": "BMU",
+    "city_name": "Hamilton",
+    "country_name": "Bermuda",
+    "timezone": "UTC-04:00",
+    "currency_code": "BMD"
+  },
+  {
+    "country_code": "BOL",
+    "city_code": "BOL",
+    "city_name": "Sucre",
+    "country_name": "Bolivia",
+    "timezone": "UTC-04:00",
+    "currency_code": "BOB"
+  },
+  {
+    "country_code": "BRA",
+    "city_code": "RIO",
+    "city_name": "RIO",
+    "country_name": "Brazil",
+    "timezone": "America/Sao_Paulo",
+    "currency_code": "BRL"
+  },
+  {
+    "country_code": "BRB",
+    "city_code": "BRB",
+    "city_name": "Bridgetown",
+    "country_name": "Barbados",
+    "timezone": "UTC-04:00",
+    "currency_code": "BBD"
+  },
+  {
+    "country_code": "BRN",
+    "city_code": "BRN",
+    "city_name": "Bandar Seri Begawan",
+    "country_name": "Brunei",
+    "timezone": "UTC+08:00",
+    "currency_code": "BND"
+  },
+  {
+    "country_code": "BTN",
+    "city_code": "BTN",
+    "city_name": "Thimphu",
+    "country_name": "Bhutan",
+    "timezone": "UTC+06:00",
+    "currency_code": "BTN"
+  },
+  {
+    "country_code": "BWA",
+    "city_code": "BWA",
+    "city_name": "Gaborone",
+    "country_name": "Botswana",
+    "timezone": "UTC+02:00",
+    "currency_code": "BWP"
+  },
+  {
+    "country_code": "CAF",
+    "city_code": "CAF",
+    "city_name": "Bangui",
+    "country_name": "Central African Republic",
+    "timezone": "UTC+01:00",
+    "currency_code": "XAF"
+  },
+  {
+    "country_code": "CAN",
+    "city_code": "CAN",
+    "city_name": "Ottawa",
+    "country_name": "Canada",
+    "timezone": "UTC-08:00",
+    "currency_code": "CAD"
+  },
+  {
+    "country_code": "CCK",
+    "city_code": "CCK",
+    "city_name": "West Island",
+    "country_name": "Cocos (Keeling) Islands",
+    "timezone": "UTC+06:30",
+    "currency_code": "AUD"
+  },
+  {
+    "country_code": "CHE",
+    "city_code": "CHE",
+    "city_name": "Bern",
+    "country_name": "Switzerland",
+    "timezone": "UTC+01:00",
+    "currency_code": "CHF"
+  },
+  {
+    "country_code": "CHL",
+    "city_code": "CHL",
+    "city_name": "Santiago",
+    "country_name": "Chile",
+    "timezone": "UTC-06:00",
+    "currency_code": "CLP"
+  },
+  {
+    "country_code": "CHN",
+    "city_code": "BJS",
+    "city_name": "Beijing",
+    "country_name": "China",
+    "timezone": "Asia/Shanghai",
+    "currency_code": "CNY"
+  },
+  {
+    "country_code": "CIV",
+    "city_code": "CIV",
+    "city_name": "Yamoussoukro",
+    "country_name": "Ivory Coast",
+    "timezone": "UTC",
+    "currency_code": "XOF"
+  },
+  {
+    "country_code": "CMR",
+    "city_code": "CMR",
+    "city_name": "Yaound\u00e9",
+    "country_name": "Cameroon",
+    "timezone": "UTC+01:00",
+    "currency_code": "XAF"
+  },
+  {
+    "country_code": "COD",
+    "city_code": "COD",
+    "city_name": "Kinshasa",
+    "country_name": "DR Congo",
+    "timezone": "UTC+01:00",
+    "currency_code": "CDF"
+  },
+  {
+    "country_code": "COG",
+    "city_code": "COG",
+    "city_name": "Brazzaville",
+    "country_name": "Republic of the Congo",
+    "timezone": "UTC+01:00",
+    "currency_code": "XAF"
+  },
+  {
+    "country_code": "COK",
+    "city_code": "COK",
+    "city_name": "Avarua",
+    "country_name": "Cook Islands",
+    "timezone": "UTC-10:00",
+    "currency_code": "CKD"
+  },
+  {
+    "country_code": "COL",
+    "city_code": "COL",
+    "city_name": "Bogot\u00e1",
+    "country_name": "Colombia",
+    "timezone": "UTC-05:00",
+    "currency_code": "COP"
+  },
+  {
+    "country_code": "COM",
+    "city_code": "COM",
+    "city_name": "Moroni",
+    "country_name": "Comoros",
+    "timezone": "UTC+03:00",
+    "currency_code": "KMF"
+  },
+  {
+    "country_code": "CPV",
+    "city_code": "CPV",
+    "city_name": "Praia",
+    "country_name": "Cape Verde",
+    "timezone": "UTC-01:00",
+    "currency_code": "CVE"
+  },
+  {
+    "country_code": "CRI",
+    "city_code": "CRI",
+    "city_name": "San Jos\u00e9",
+    "country_name": "Costa Rica",
+    "timezone": "UTC-06:00",
+    "currency_code": "CRC"
+  },
+  {
+    "country_code": "CUB",
+    "city_code": "CUB",
+    "city_name": "Havana",
+    "country_name": "Cuba",
+    "timezone": "UTC-05:00",
+    "currency_code": "CUC"
+  },
+  {
+    "country_code": "CUW",
+    "city_code": "CUW",
+    "city_name": "Willemstad",
+    "country_name": "Cura\u00e7ao",
+    "timezone": "UTC-04:00",
+    "currency_code": "ANG"
+  },
+  {
+    "country_code": "CXR",
+    "city_code": "CXR",
+    "city_name": "Flying Fish Cove",
+    "country_name": "Christmas Island",
+    "timezone": "UTC+07:00",
+    "currency_code": "AUD"
+  },
+  {
+    "country_code": "CYM",
+    "city_code": "CYM",
+    "city_name": "George Town",
+    "country_name": "Cayman Islands",
+    "timezone": "UTC-05:00",
+    "currency_code": "KYD"
+  },
+  {
+    "country_code": "CYP",
+    "city_code": "CYP",
+    "city_name": "Nicosia",
+    "country_name": "Cyprus",
+    "timezone": "UTC+02:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "CZE",
+    "city_code": "CZE",
+    "city_name": "Prague",
+    "country_name": "Czechia",
+    "timezone": "UTC+01:00",
+    "currency_code": "CZK"
+  },
+  {
+    "country_code": "DEU",
+    "city_code": "BER",
+    "city_name": "Berlin",
+    "country_name": "Germany",
+    "timezone": "Europe/Berlin",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "DJI",
+    "city_code": "DJI",
+    "city_name": "Djibouti",
+    "country_name": "Djibouti",
+    "timezone": "UTC+03:00",
+    "currency_code": "DJF"
+  },
+  {
+    "country_code": "DMA",
+    "city_code": "DMA",
+    "city_name": "Roseau",
+    "country_name": "Dominica",
+    "timezone": "UTC-04:00",
+    "currency_code": "XCD"
+  },
+  {
+    "country_code": "DNK",
+    "city_code": "CPH",
+    "city_name": "Copenhagen",
+    "country_name": "Denmark",
+    "timezone": "Europe/Copenhagen",
+    "currency_code": "DKK"
+  },
+  {
+    "country_code": "DOM",
+    "city_code": "DOM",
+    "city_name": "Santo Domingo",
+    "country_name": "Dominican Republic",
+    "timezone": "UTC-04:00",
+    "currency_code": "DOP"
+  },
+  {
+    "country_code": "DZA",
+    "city_code": "DZA",
+    "city_name": "Algiers",
+    "country_name": "Algeria",
+    "timezone": "UTC+01:00",
+    "currency_code": "DZD"
+  },
+  {
+    "country_code": "ECU",
+    "city_code": "ECU",
+    "city_name": "Quito",
+    "country_name": "Ecuador",
+    "timezone": "UTC-06:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "EGY",
+    "city_code": "EGY",
+    "city_name": "Cairo",
+    "country_name": "Egypt",
+    "timezone": "UTC+02:00",
+    "currency_code": "EGP"
+  },
+  {
+    "country_code": "ERI",
+    "city_code": "ERI",
+    "city_name": "Asmara",
+    "country_name": "Eritrea",
+    "timezone": "UTC+03:00",
+    "currency_code": "ERN"
+  },
+  {
+    "country_code": "ESH",
+    "city_code": "ESH",
+    "city_name": "El Aai\u00fan",
+    "country_name": "Western Sahara",
+    "timezone": "UTC+00:00",
+    "currency_code": "DZD"
+  },
+  {
+    "country_code": "ESP",
+    "city_code": "ESP",
+    "city_name": "Madrid",
+    "country_name": "Spain",
+    "timezone": "UTC",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "EST",
+    "city_code": "EST",
+    "city_name": "Tallinn",
+    "country_name": "Estonia",
+    "timezone": "UTC+02:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "ETH",
+    "city_code": "ADD",
+    "city_name": "Addis Ababa",
+    "country_name": "Ethiopia",
+    "timezone": "Africa/Addis_Ababa",
+    "currency_code": "ETB"
+  },
+  {
+    "country_code": "FIN",
+    "city_code": "FIN",
+    "city_name": "Helsinki",
+    "country_name": "Finland",
+    "timezone": "UTC+02:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "FJI",
+    "city_code": "FJI",
+    "city_name": "Suva",
+    "country_name": "Fiji",
+    "timezone": "UTC+12:00",
+    "currency_code": "FJD"
+  },
+  {
+    "country_code": "FLK",
+    "city_code": "FLK",
+    "city_name": "Stanley",
+    "country_name": "Falkland Islands",
+    "timezone": "UTC-04:00",
+    "currency_code": "FKP"
+  },
+  {
+    "country_code": "FRA",
+    "city_code": "PAR",
+    "city_name": "Paris",
+    "country_name": "France",
+    "timezone": "Europe/Paris",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "FRO",
+    "city_code": "FRO",
+    "city_name": "T\u00f3rshavn",
+    "country_name": "Faroe Islands",
+    "timezone": "UTC+00:00",
+    "currency_code": "DKK"
+  },
+  {
+    "country_code": "FSM",
+    "city_code": "FSM",
+    "city_name": "Palikir",
+    "country_name": "Micronesia",
+    "timezone": "UTC+10:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "GAB",
+    "city_code": "GAB",
+    "city_name": "Libreville",
+    "country_name": "Gabon",
+    "timezone": "UTC+01:00",
+    "currency_code": "XAF"
+  },
+  {
+    "country_code": "GBR",
+    "city_code": "LDN",
+    "city_name": "London",
+    "country_name": "United Kingdom",
+    "timezone": "Europe/London",
+    "currency_code": "GBP"
+  },
+  {
+    "country_code": "GEO",
+    "city_code": "GEO",
+    "city_name": "Tbilisi",
+    "country_name": "Georgia",
+    "timezone": "UTC+04:00",
+    "currency_code": "GEL"
+  },
+  {
+    "country_code": "GGY",
+    "city_code": "GGY",
+    "city_name": "St. Peter Port",
+    "country_name": "Guernsey",
+    "timezone": "UTC+00:00",
+    "currency_code": "GBP"
+  },
+  {
+    "country_code": "GHA",
+    "city_code": "GHA",
+    "city_name": "Accra",
+    "country_name": "Ghana",
+    "timezone": "UTC",
+    "currency_code": "GHS"
+  },
+  {
+    "country_code": "GIB",
+    "city_code": "GIB",
+    "city_name": "Gibraltar",
+    "country_name": "Gibraltar",
+    "timezone": "UTC+01:00",
+    "currency_code": "GIP"
+  },
+  {
+    "country_code": "GIN",
+    "city_code": "GIN",
+    "city_name": "Conakry",
+    "country_name": "Guinea",
+    "timezone": "UTC",
+    "currency_code": "GNF"
+  },
+  {
+    "country_code": "GLP",
+    "city_code": "GLP",
+    "city_name": "Basse-Terre",
+    "country_name": "Guadeloupe",
+    "timezone": "UTC-04:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "GMB",
+    "city_code": "GMB",
+    "city_name": "Banjul",
+    "country_name": "Gambia",
+    "timezone": "UTC+00:00",
+    "currency_code": "GMD"
+  },
+  {
+    "country_code": "GNB",
+    "city_code": "GNB",
+    "city_name": "Bissau",
+    "country_name": "Guinea-Bissau",
+    "timezone": "UTC",
+    "currency_code": "XOF"
+  },
+  {
+    "country_code": "GNQ",
+    "city_code": "GNQ",
+    "city_name": "Ciudad de la Paz",
+    "country_name": "Equatorial Guinea",
+    "timezone": "UTC+01:00",
+    "currency_code": "XAF"
+  },
+  {
+    "country_code": "GRC",
+    "city_code": "GRC",
+    "city_name": "Athens",
+    "country_name": "Greece",
+    "timezone": "UTC+02:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "GRD",
+    "city_code": "GRD",
+    "city_name": "St. George's",
+    "country_name": "Grenada",
+    "timezone": "UTC-04:00",
+    "currency_code": "XCD"
+  },
+  {
+    "country_code": "GRL",
+    "city_code": "GRL",
+    "city_name": "Nuuk",
+    "country_name": "Greenland",
+    "timezone": "UTC-04:00",
+    "currency_code": "DKK"
+  },
+  {
+    "country_code": "GTM",
+    "city_code": "GTM",
+    "city_name": "Guatemala City",
+    "country_name": "Guatemala",
+    "timezone": "UTC-06:00",
+    "currency_code": "GTQ"
+  },
+  {
+    "country_code": "GUF",
+    "city_code": "GUF",
+    "city_name": "Cayenne",
+    "country_name": "French Guiana",
+    "timezone": "UTC-03:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "GUM",
+    "city_code": "GUM",
+    "city_name": "Hag\u00e5t\u00f1a",
+    "country_name": "Guam",
+    "timezone": "UTC+10:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "GUY",
+    "city_code": "GUY",
+    "city_name": "Georgetown",
+    "country_name": "Guyana",
+    "timezone": "UTC-04:00",
+    "currency_code": "GYD"
+  },
+  {
+    "country_code": "HKG",
+    "city_code": "HKG",
+    "city_name": "City of Victoria",
+    "country_name": "Hong Kong",
+    "timezone": "UTC+08:00",
+    "currency_code": "HKD"
+  },
+  {
+    "country_code": "HND",
+    "city_code": "HND",
+    "city_name": "Tegucigalpa",
+    "country_name": "Honduras",
+    "timezone": "UTC-06:00",
+    "currency_code": "HNL"
+  },
+  {
+    "country_code": "HRV",
+    "city_code": "HRV",
+    "city_name": "Zagreb",
+    "country_name": "Croatia",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "HTI",
+    "city_code": "HTI",
+    "city_name": "Port-au-Prince",
+    "country_name": "Haiti",
+    "timezone": "UTC-05:00",
+    "currency_code": "HTG"
+  },
+  {
+    "country_code": "HUN",
+    "city_code": "HUN",
+    "city_name": "Budapest",
+    "country_name": "Hungary",
+    "timezone": "UTC+01:00",
+    "currency_code": "HUF"
+  },
+  {
+    "country_code": "IDN",
+    "city_code": "IDN",
+    "city_name": "Jakarta",
+    "country_name": "Indonesia",
+    "timezone": "UTC+07:00",
+    "currency_code": "IDR"
+  },
+  {
+    "country_code": "IMN",
+    "city_code": "IMN",
+    "city_name": "Douglas",
+    "country_name": "Isle of Man",
+    "timezone": "UTC+00:00",
+    "currency_code": "GBP"
+  },
+  {
+    "country_code": "IND",
+    "city_code": "IND",
+    "city_name": "New Delhi",
+    "country_name": "India",
+    "timezone": "UTC+05:30",
+    "currency_code": "INR"
+  },
+  {
+    "country_code": "IOT",
+    "city_code": "IOT",
+    "city_name": "Diego Garcia",
+    "country_name": "British Indian Ocean Territory",
+    "timezone": "UTC+06:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "IRL",
+    "city_code": "IRL",
+    "city_name": "Dublin",
+    "country_name": "Ireland",
+    "timezone": "UTC",
+    "currency_code": "EUR"
+  },
+  {
     "country_code": "IRN",
     "city_code": "THR",
     "city_name": "Tehran",
     "country_name": "Iran",
     "timezone": "Asia/Tehran",
     "currency_code": "IRR"
+  },
+  {
+    "country_code": "IRQ",
+    "city_code": "IRQ",
+    "city_name": "Baghdad",
+    "country_name": "Iraq",
+    "timezone": "UTC+03:00",
+    "currency_code": "IQD"
+  },
+  {
+    "country_code": "ISL",
+    "city_code": "ISL",
+    "city_name": "Reykjavik",
+    "country_name": "Iceland",
+    "timezone": "UTC",
+    "currency_code": "ISK"
   },
   {
     "country_code": "ISR",
@@ -112,11 +864,1115 @@
     "currency_code": "ILS"
   },
   {
-    "country_code": "CHN",
-    "city_code": "BJS",
-    "city_name": "Beijing",
-    "country_name": "China",
-    "timezone": "Asia/Shanghai",
-    "currency_code": "CNY"
+    "country_code": "ITA",
+    "city_code": "ITA",
+    "city_name": "Rome",
+    "country_name": "Italy",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "JAM",
+    "city_code": "JAM",
+    "city_name": "Kingston",
+    "country_name": "Jamaica",
+    "timezone": "UTC-05:00",
+    "currency_code": "JMD"
+  },
+  {
+    "country_code": "JEY",
+    "city_code": "JEY",
+    "city_name": "Saint Helier",
+    "country_name": "Jersey",
+    "timezone": "UTC+01:00",
+    "currency_code": "GBP"
+  },
+  {
+    "country_code": "JOR",
+    "city_code": "JOR",
+    "city_name": "Amman",
+    "country_name": "Jordan",
+    "timezone": "UTC+03:00",
+    "currency_code": "JOD"
+  },
+  {
+    "country_code": "JPN",
+    "city_code": "TYO",
+    "city_name": "Tokyo",
+    "country_name": "Japan",
+    "timezone": "Asia/Tokyo",
+    "currency_code": "JPY"
+  },
+  {
+    "country_code": "KAZ",
+    "city_code": "KAZ",
+    "city_name": "Astana",
+    "country_name": "Kazakhstan",
+    "timezone": "UTC+05:00",
+    "currency_code": "KZT"
+  },
+  {
+    "country_code": "KEN",
+    "city_code": "KEN",
+    "city_name": "Nairobi",
+    "country_name": "Kenya",
+    "timezone": "UTC+03:00",
+    "currency_code": "KES"
+  },
+  {
+    "country_code": "KGZ",
+    "city_code": "KGZ",
+    "city_name": "Bishkek",
+    "country_name": "Kyrgyzstan",
+    "timezone": "UTC+06:00",
+    "currency_code": "KGS"
+  },
+  {
+    "country_code": "KHM",
+    "city_code": "KHM",
+    "city_name": "Phnom Penh",
+    "country_name": "Cambodia",
+    "timezone": "UTC+07:00",
+    "currency_code": "KHR"
+  },
+  {
+    "country_code": "KIR",
+    "city_code": "KIR",
+    "city_name": "South Tarawa",
+    "country_name": "Kiribati",
+    "timezone": "UTC+12:00",
+    "currency_code": "AUD"
+  },
+  {
+    "country_code": "KNA",
+    "city_code": "KNA",
+    "city_name": "Basseterre",
+    "country_name": "Saint Kitts and Nevis",
+    "timezone": "UTC-04:00",
+    "currency_code": "XCD"
+  },
+  {
+    "country_code": "KOR",
+    "city_code": "KOR",
+    "city_name": "Seoul",
+    "country_name": "South Korea",
+    "timezone": "UTC+09:00",
+    "currency_code": "KRW"
+  },
+  {
+    "country_code": "KWT",
+    "city_code": "KWT",
+    "city_name": "Kuwait City",
+    "country_name": "Kuwait",
+    "timezone": "UTC+03:00",
+    "currency_code": "KWD"
+  },
+  {
+    "country_code": "LAO",
+    "city_code": "LAO",
+    "city_name": "Vientiane",
+    "country_name": "Laos",
+    "timezone": "UTC+07:00",
+    "currency_code": "LAK"
+  },
+  {
+    "country_code": "LBN",
+    "city_code": "LBN",
+    "city_name": "Beirut",
+    "country_name": "Lebanon",
+    "timezone": "UTC+02:00",
+    "currency_code": "LBP"
+  },
+  {
+    "country_code": "LBR",
+    "city_code": "LBR",
+    "city_name": "Monrovia",
+    "country_name": "Liberia",
+    "timezone": "UTC",
+    "currency_code": "LRD"
+  },
+  {
+    "country_code": "LBY",
+    "city_code": "LBY",
+    "city_name": "Tripoli",
+    "country_name": "Libya",
+    "timezone": "UTC+01:00",
+    "currency_code": "LYD"
+  },
+  {
+    "country_code": "LCA",
+    "city_code": "LCA",
+    "city_name": "Castries",
+    "country_name": "Saint Lucia",
+    "timezone": "UTC-04:00",
+    "currency_code": "XCD"
+  },
+  {
+    "country_code": "LIE",
+    "city_code": "LIE",
+    "city_name": "Vaduz",
+    "country_name": "Liechtenstein",
+    "timezone": "UTC+01:00",
+    "currency_code": "CHF"
+  },
+  {
+    "country_code": "LKA",
+    "city_code": "LKA",
+    "city_name": "Sri Jayawardenepura Kotte",
+    "country_name": "Sri Lanka",
+    "timezone": "UTC+05:30",
+    "currency_code": "LKR"
+  },
+  {
+    "country_code": "LSO",
+    "city_code": "LSO",
+    "city_name": "Maseru",
+    "country_name": "Lesotho",
+    "timezone": "UTC+02:00",
+    "currency_code": "LSL"
+  },
+  {
+    "country_code": "LTU",
+    "city_code": "LTU",
+    "city_name": "Vilnius",
+    "country_name": "Lithuania",
+    "timezone": "UTC+02:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "LUX",
+    "city_code": "LUX",
+    "city_name": "Luxembourg",
+    "country_name": "Luxembourg",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "LVA",
+    "city_code": "LVA",
+    "city_name": "Riga",
+    "country_name": "Latvia",
+    "timezone": "UTC+02:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "MAC",
+    "city_code": "MAC",
+    "city_name": "Macau",
+    "country_name": "Macau",
+    "timezone": "UTC+08:00",
+    "currency_code": "MOP"
+  },
+  {
+    "country_code": "MAF",
+    "city_code": "MAF",
+    "city_name": "Marigot",
+    "country_name": "Saint Martin",
+    "timezone": "UTC-04:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "MAR",
+    "city_code": "MAR",
+    "city_name": "Rabat",
+    "country_name": "Morocco",
+    "timezone": "UTC",
+    "currency_code": "MAD"
+  },
+  {
+    "country_code": "MCO",
+    "city_code": "MCO",
+    "city_name": "Monaco",
+    "country_name": "Monaco",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "MDA",
+    "city_code": "MDA",
+    "city_name": "Chi\u0219in\u0103u",
+    "country_name": "Moldova",
+    "timezone": "UTC+02:00",
+    "currency_code": "MDL"
+  },
+  {
+    "country_code": "MDG",
+    "city_code": "MDG",
+    "city_name": "Antananarivo",
+    "country_name": "Madagascar",
+    "timezone": "UTC+03:00",
+    "currency_code": "MGA"
+  },
+  {
+    "country_code": "MDV",
+    "city_code": "MDV",
+    "city_name": "Mal\u00e9",
+    "country_name": "Maldives",
+    "timezone": "UTC+05:00",
+    "currency_code": "MVR"
+  },
+  {
+    "country_code": "MEX",
+    "city_code": "MEX",
+    "city_name": "Mexico City",
+    "country_name": "Mexico",
+    "timezone": "UTC-08:00",
+    "currency_code": "MXN"
+  },
+  {
+    "country_code": "MHL",
+    "city_code": "MHL",
+    "city_name": "Majuro",
+    "country_name": "Marshall Islands",
+    "timezone": "UTC+12:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "MKD",
+    "city_code": "MKD",
+    "city_name": "Skopje",
+    "country_name": "North Macedonia",
+    "timezone": "UTC+01:00",
+    "currency_code": "MKD"
+  },
+  {
+    "country_code": "MLI",
+    "city_code": "MLI",
+    "city_name": "Bamako",
+    "country_name": "Mali",
+    "timezone": "UTC",
+    "currency_code": "XOF"
+  },
+  {
+    "country_code": "MLT",
+    "city_code": "MLT",
+    "city_name": "Valletta",
+    "country_name": "Malta",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "MMR",
+    "city_code": "MMR",
+    "city_name": "Naypyidaw",
+    "country_name": "Myanmar",
+    "timezone": "UTC+06:30",
+    "currency_code": "MMK"
+  },
+  {
+    "country_code": "MNE",
+    "city_code": "MNE",
+    "city_name": "Podgorica",
+    "country_name": "Montenegro",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "MNG",
+    "city_code": "MNG",
+    "city_name": "Ulan Bator",
+    "country_name": "Mongolia",
+    "timezone": "UTC+07:00",
+    "currency_code": "MNT"
+  },
+  {
+    "country_code": "MNP",
+    "city_code": "MNP",
+    "city_name": "Saipan",
+    "country_name": "Northern Mariana Islands",
+    "timezone": "UTC+10:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "MOZ",
+    "city_code": "MOZ",
+    "city_name": "Maputo",
+    "country_name": "Mozambique",
+    "timezone": "UTC+02:00",
+    "currency_code": "MZN"
+  },
+  {
+    "country_code": "MRT",
+    "city_code": "MRT",
+    "city_name": "Nouakchott",
+    "country_name": "Mauritania",
+    "timezone": "UTC",
+    "currency_code": "MRU"
+  },
+  {
+    "country_code": "MSR",
+    "city_code": "MSR",
+    "city_name": "Plymouth",
+    "country_name": "Montserrat",
+    "timezone": "UTC-04:00",
+    "currency_code": "XCD"
+  },
+  {
+    "country_code": "MTQ",
+    "city_code": "MTQ",
+    "city_name": "Fort-de-France",
+    "country_name": "Martinique",
+    "timezone": "UTC-04:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "MUS",
+    "city_code": "MUS",
+    "city_name": "Port Louis",
+    "country_name": "Mauritius",
+    "timezone": "UTC+04:00",
+    "currency_code": "MUR"
+  },
+  {
+    "country_code": "MWI",
+    "city_code": "MWI",
+    "city_name": "Lilongwe",
+    "country_name": "Malawi",
+    "timezone": "UTC+02:00",
+    "currency_code": "MWK"
+  },
+  {
+    "country_code": "MYS",
+    "city_code": "KL",
+    "city_name": "Kuala Lumpur",
+    "country_name": "Malaysia",
+    "timezone": "Asia/Kuala_Lumpur",
+    "currency_code": "MYR"
+  },
+  {
+    "country_code": "MYT",
+    "city_code": "MYT",
+    "city_name": "Mamoudzou",
+    "country_name": "Mayotte",
+    "timezone": "UTC+03:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "NAM",
+    "city_code": "NAM",
+    "city_name": "Windhoek",
+    "country_name": "Namibia",
+    "timezone": "UTC+01:00",
+    "currency_code": "NAD"
+  },
+  {
+    "country_code": "NCL",
+    "city_code": "NCL",
+    "city_name": "Noum\u00e9a",
+    "country_name": "New Caledonia",
+    "timezone": "UTC+11:00",
+    "currency_code": "XPF"
+  },
+  {
+    "country_code": "NER",
+    "city_code": "NER",
+    "city_name": "Niamey",
+    "country_name": "Niger",
+    "timezone": "UTC+01:00",
+    "currency_code": "XOF"
+  },
+  {
+    "country_code": "NFK",
+    "city_code": "NFK",
+    "city_name": "Kingston",
+    "country_name": "Norfolk Island",
+    "timezone": "UTC+11:30",
+    "currency_code": "AUD"
+  },
+  {
+    "country_code": "NGA",
+    "city_code": "NGA",
+    "city_name": "Abuja",
+    "country_name": "Nigeria",
+    "timezone": "UTC+01:00",
+    "currency_code": "NGN"
+  },
+  {
+    "country_code": "NIC",
+    "city_code": "NIC",
+    "city_name": "Managua",
+    "country_name": "Nicaragua",
+    "timezone": "UTC-06:00",
+    "currency_code": "NIO"
+  },
+  {
+    "country_code": "NIU",
+    "city_code": "NIU",
+    "city_name": "Alofi",
+    "country_name": "Niue",
+    "timezone": "UTC-11:00",
+    "currency_code": "NZD"
+  },
+  {
+    "country_code": "NLD",
+    "city_code": "NLD",
+    "city_name": "Amsterdam",
+    "country_name": "Netherlands",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "NOR",
+    "city_code": "NOR",
+    "city_name": "Oslo",
+    "country_name": "Norway",
+    "timezone": "UTC+01:00",
+    "currency_code": "NOK"
+  },
+  {
+    "country_code": "NPL",
+    "city_code": "NPL",
+    "city_name": "Kathmandu",
+    "country_name": "Nepal",
+    "timezone": "UTC+05:45",
+    "currency_code": "NPR"
+  },
+  {
+    "country_code": "NRU",
+    "city_code": "NRU",
+    "city_name": "Yaren",
+    "country_name": "Nauru",
+    "timezone": "UTC+12:00",
+    "currency_code": "AUD"
+  },
+  {
+    "country_code": "NZL",
+    "city_code": "WLG",
+    "city_name": "Wellington",
+    "country_name": "New Zealand",
+    "timezone": "Pacific/Auckland",
+    "currency_code": "NZD"
+  },
+  {
+    "country_code": "OMN",
+    "city_code": "OMN",
+    "city_name": "Muscat",
+    "country_name": "Oman",
+    "timezone": "UTC+04:00",
+    "currency_code": "OMR"
+  },
+  {
+    "country_code": "PAK",
+    "city_code": "PAK",
+    "city_name": "Islamabad",
+    "country_name": "Pakistan",
+    "timezone": "UTC+05:00",
+    "currency_code": "PKR"
+  },
+  {
+    "country_code": "PAN",
+    "city_code": "PAN",
+    "city_name": "Panama City",
+    "country_name": "Panama",
+    "timezone": "UTC-05:00",
+    "currency_code": "PAB"
+  },
+  {
+    "country_code": "PCN",
+    "city_code": "PCN",
+    "city_name": "Adamstown",
+    "country_name": "Pitcairn Islands",
+    "timezone": "UTC-08:00",
+    "currency_code": "NZD"
+  },
+  {
+    "country_code": "PER",
+    "city_code": "PER",
+    "city_name": "Lima",
+    "country_name": "Peru",
+    "timezone": "UTC-05:00",
+    "currency_code": "PEN"
+  },
+  {
+    "country_code": "PHL",
+    "city_code": "PHL",
+    "city_name": "Manila",
+    "country_name": "Philippines",
+    "timezone": "UTC+08:00",
+    "currency_code": "PHP"
+  },
+  {
+    "country_code": "PLW",
+    "city_code": "PLW",
+    "city_name": "Ngerulmud",
+    "country_name": "Palau",
+    "timezone": "UTC+09:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "PNG",
+    "city_code": "PNG",
+    "city_name": "Port Moresby",
+    "country_name": "Papua New Guinea",
+    "timezone": "UTC+10:00",
+    "currency_code": "PGK"
+  },
+  {
+    "country_code": "POL",
+    "city_code": "POL",
+    "city_name": "Warsaw",
+    "country_name": "Poland",
+    "timezone": "UTC+01:00",
+    "currency_code": "PLN"
+  },
+  {
+    "country_code": "PRI",
+    "city_code": "PRI",
+    "city_name": "San Juan",
+    "country_name": "Puerto Rico",
+    "timezone": "UTC-04:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "PRK",
+    "city_code": "PRK",
+    "city_name": "Pyongyang",
+    "country_name": "North Korea",
+    "timezone": "UTC+09:00",
+    "currency_code": "KPW"
+  },
+  {
+    "country_code": "PRT",
+    "city_code": "PRT",
+    "city_name": "Lisbon",
+    "country_name": "Portugal",
+    "timezone": "UTC-01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "PRY",
+    "city_code": "PRY",
+    "city_name": "Asunci\u00f3n",
+    "country_name": "Paraguay",
+    "timezone": "UTC-04:00",
+    "currency_code": "PYG"
+  },
+  {
+    "country_code": "PSE",
+    "city_code": "PSE",
+    "city_name": "Ramallah",
+    "country_name": "Palestine",
+    "timezone": "UTC+02:00",
+    "currency_code": "EGP"
+  },
+  {
+    "country_code": "PYF",
+    "city_code": "PYF",
+    "city_name": "Papeet\u0113",
+    "country_name": "French Polynesia",
+    "timezone": "UTC-10:00",
+    "currency_code": "XPF"
+  },
+  {
+    "country_code": "QAT",
+    "city_code": "QAT",
+    "city_name": "Doha",
+    "country_name": "Qatar",
+    "timezone": "UTC+03:00",
+    "currency_code": "QAR"
+  },
+  {
+    "country_code": "REU",
+    "city_code": "REU",
+    "city_name": "Saint-Denis",
+    "country_name": "R\u00e9union",
+    "timezone": "UTC+04:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "ROU",
+    "city_code": "ROU",
+    "city_name": "Bucharest",
+    "country_name": "Romania",
+    "timezone": "UTC+02:00",
+    "currency_code": "RON"
+  },
+  {
+    "country_code": "RUS",
+    "city_code": "RUS",
+    "city_name": "Moscow",
+    "country_name": "Russia",
+    "timezone": "UTC+03:00",
+    "currency_code": "RUB"
+  },
+  {
+    "country_code": "RWA",
+    "city_code": "RWA",
+    "city_name": "Kigali",
+    "country_name": "Rwanda",
+    "timezone": "UTC+02:00",
+    "currency_code": "RWF"
+  },
+  {
+    "country_code": "SAU",
+    "city_code": "SAU",
+    "city_name": "Riyadh",
+    "country_name": "Saudi Arabia",
+    "timezone": "UTC+03:00",
+    "currency_code": "SAR"
+  },
+  {
+    "country_code": "SDN",
+    "city_code": "SDN",
+    "city_name": "Khartoum",
+    "country_name": "Sudan",
+    "timezone": "UTC+03:00",
+    "currency_code": "SDG"
+  },
+  {
+    "country_code": "SEN",
+    "city_code": "SEN",
+    "city_name": "Dakar",
+    "country_name": "Senegal",
+    "timezone": "UTC",
+    "currency_code": "XOF"
+  },
+  {
+    "country_code": "SGP",
+    "city_code": "SIN",
+    "city_name": "Singapore",
+    "country_name": "Singapore",
+    "timezone": "Asia/Singapore",
+    "currency_code": "SGD"
+  },
+  {
+    "country_code": "SGS",
+    "city_code": "SGS",
+    "city_name": "King Edward Point",
+    "country_name": "South Georgia",
+    "timezone": "UTC-02:00",
+    "currency_code": "GBP"
+  },
+  {
+    "country_code": "SHN",
+    "city_code": "SHN",
+    "city_name": "Jamestown",
+    "country_name": "Saint Helena  Ascension and Tristan da Cunha",
+    "timezone": "UTC+00:00",
+    "currency_code": "GBP"
+  },
+  {
+    "country_code": "SJM",
+    "city_code": "SJM",
+    "city_name": "Longyearbyen",
+    "country_name": "Svalbard and Jan Mayen",
+    "timezone": "UTC+01:00",
+    "currency_code": "NOK"
+  },
+  {
+    "country_code": "SLB",
+    "city_code": "SLB",
+    "city_name": "Honiara",
+    "country_name": "Solomon Islands",
+    "timezone": "UTC+11:00",
+    "currency_code": "SBD"
+  },
+  {
+    "country_code": "SLE",
+    "city_code": "SLE",
+    "city_name": "Freetown",
+    "country_name": "Sierra Leone",
+    "timezone": "UTC",
+    "currency_code": "SLE"
+  },
+  {
+    "country_code": "SLV",
+    "city_code": "SLV",
+    "city_name": "San Salvador",
+    "country_name": "El Salvador",
+    "timezone": "UTC-06:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "SMR",
+    "city_code": "SMR",
+    "city_name": "City of San Marino",
+    "country_name": "San Marino",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "SOM",
+    "city_code": "SOM",
+    "city_name": "Mogadishu",
+    "country_name": "Somalia",
+    "timezone": "UTC+03:00",
+    "currency_code": "SOS"
+  },
+  {
+    "country_code": "SPM",
+    "city_code": "SPM",
+    "city_name": "Saint-Pierre",
+    "country_name": "Saint Pierre and Miquelon",
+    "timezone": "UTC-03:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "SRB",
+    "city_code": "SRB",
+    "city_name": "Belgrade",
+    "country_name": "Serbia",
+    "timezone": "UTC+01:00",
+    "currency_code": "RSD"
+  },
+  {
+    "country_code": "SSD",
+    "city_code": "SSD",
+    "city_name": "Juba",
+    "country_name": "South Sudan",
+    "timezone": "UTC+03:00",
+    "currency_code": "SSP"
+  },
+  {
+    "country_code": "STP",
+    "city_code": "STP",
+    "city_name": "S\u00e3o Tom\u00e9",
+    "country_name": "S\u00e3o Tom\u00e9 and Pr\u00edncipe",
+    "timezone": "UTC",
+    "currency_code": "STN"
+  },
+  {
+    "country_code": "SUR",
+    "city_code": "SUR",
+    "city_name": "Paramaribo",
+    "country_name": "Suriname",
+    "timezone": "UTC-03:00",
+    "currency_code": "SRD"
+  },
+  {
+    "country_code": "SVK",
+    "city_code": "SVK",
+    "city_name": "Bratislava",
+    "country_name": "Slovakia",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "SVN",
+    "city_code": "SVN",
+    "city_name": "Ljubljana",
+    "country_name": "Slovenia",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "SWE",
+    "city_code": "SWE",
+    "city_name": "Stockholm",
+    "country_name": "Sweden",
+    "timezone": "UTC+01:00",
+    "currency_code": "SEK"
+  },
+  {
+    "country_code": "SWZ",
+    "city_code": "SWZ",
+    "city_name": "Mbabane",
+    "country_name": "Eswatini",
+    "timezone": "UTC+02:00",
+    "currency_code": "SZL"
+  },
+  {
+    "country_code": "SXM",
+    "city_code": "SXM",
+    "city_name": "Philipsburg",
+    "country_name": "Sint Maarten",
+    "timezone": "UTC-04:00",
+    "currency_code": "ANG"
+  },
+  {
+    "country_code": "SYC",
+    "city_code": "SYC",
+    "city_name": "Victoria",
+    "country_name": "Seychelles",
+    "timezone": "UTC+04:00",
+    "currency_code": "SCR"
+  },
+  {
+    "country_code": "SYR",
+    "city_code": "SYR",
+    "city_name": "Damascus",
+    "country_name": "Syria",
+    "timezone": "UTC+02:00",
+    "currency_code": "SYP"
+  },
+  {
+    "country_code": "TCA",
+    "city_code": "TCA",
+    "city_name": "Cockburn Town",
+    "country_name": "Turks and Caicos Islands",
+    "timezone": "UTC-04:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "TCD",
+    "city_code": "TCD",
+    "city_name": "N'Djamena",
+    "country_name": "Chad",
+    "timezone": "UTC+01:00",
+    "currency_code": "XAF"
+  },
+  {
+    "country_code": "TGO",
+    "city_code": "TGO",
+    "city_name": "Lom\u00e9",
+    "country_name": "Togo",
+    "timezone": "UTC",
+    "currency_code": "XOF"
+  },
+  {
+    "country_code": "THA",
+    "city_code": "THA",
+    "city_name": "Bangkok",
+    "country_name": "Thailand",
+    "timezone": "UTC+07:00",
+    "currency_code": "THB"
+  },
+  {
+    "country_code": "TJK",
+    "city_code": "TJK",
+    "city_name": "Dushanbe",
+    "country_name": "Tajikistan",
+    "timezone": "UTC+05:00",
+    "currency_code": "TJS"
+  },
+  {
+    "country_code": "TKL",
+    "city_code": "TKL",
+    "city_name": "Fakaofo",
+    "country_name": "Tokelau",
+    "timezone": "UTC+13:00",
+    "currency_code": "NZD"
+  },
+  {
+    "country_code": "TKM",
+    "city_code": "TKM",
+    "city_name": "Ashgabat",
+    "country_name": "Turkmenistan",
+    "timezone": "UTC+05:00",
+    "currency_code": "TMT"
+  },
+  {
+    "country_code": "TLS",
+    "city_code": "TLS",
+    "city_name": "Dili",
+    "country_name": "Timor-Leste",
+    "timezone": "UTC+09:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "TON",
+    "city_code": "TON",
+    "city_name": "Nuku'alofa",
+    "country_name": "Tonga",
+    "timezone": "UTC+13:00",
+    "currency_code": "TOP"
+  },
+  {
+    "country_code": "TTO",
+    "city_code": "TTO",
+    "city_name": "Port of Spain",
+    "country_name": "Trinidad and Tobago",
+    "timezone": "UTC-04:00",
+    "currency_code": "TTD"
+  },
+  {
+    "country_code": "TUN",
+    "city_code": "TUN",
+    "city_name": "Tunis",
+    "country_name": "Tunisia",
+    "timezone": "UTC+01:00",
+    "currency_code": "TND"
+  },
+  {
+    "country_code": "TUR",
+    "city_code": "TUR",
+    "city_name": "Ankara",
+    "country_name": "Turkey",
+    "timezone": "UTC+03:00",
+    "currency_code": "TRY"
+  },
+  {
+    "country_code": "TUV",
+    "city_code": "TUV",
+    "city_name": "Funafuti",
+    "country_name": "Tuvalu",
+    "timezone": "UTC+12:00",
+    "currency_code": "AUD"
+  },
+  {
+    "country_code": "TWN",
+    "city_code": "TWN",
+    "city_name": "Taipei",
+    "country_name": "Taiwan",
+    "timezone": "UTC+08:00",
+    "currency_code": "TWD"
+  },
+  {
+    "country_code": "TZA",
+    "city_code": "TZA",
+    "city_name": "Dodoma",
+    "country_name": "Tanzania",
+    "timezone": "UTC+03:00",
+    "currency_code": "TZS"
+  },
+  {
+    "country_code": "UGA",
+    "city_code": "UGA",
+    "city_name": "Kampala",
+    "country_name": "Uganda",
+    "timezone": "UTC+03:00",
+    "currency_code": "UGX"
+  },
+  {
+    "country_code": "UKR",
+    "city_code": "UKR",
+    "city_name": "Kyiv",
+    "country_name": "Ukraine",
+    "timezone": "UTC+02:00",
+    "currency_code": "UAH"
+  },
+  {
+    "country_code": "UMI",
+    "city_code": "UMI",
+    "city_name": "Washington DC",
+    "country_name": "United States Minor Outlying Islands",
+    "timezone": "UTC-11:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "UNK",
+    "city_code": "UNK",
+    "city_name": "Pristina",
+    "country_name": "Kosovo",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "URY",
+    "city_code": "URY",
+    "city_name": "Montevideo",
+    "country_name": "Uruguay",
+    "timezone": "UTC-03:00",
+    "currency_code": "UYU"
+  },
+  {
+    "country_code": "USA",
+    "city_code": "BOS",
+    "city_name": "Boston",
+    "country_name": "United States",
+    "timezone": "America/New_York",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "UZB",
+    "city_code": "UZB",
+    "city_name": "Tashkent",
+    "country_name": "Uzbekistan",
+    "timezone": "UTC+05:00",
+    "currency_code": "UZS"
+  },
+  {
+    "country_code": "VAT",
+    "city_code": "VAT",
+    "city_name": "Vatican City",
+    "country_name": "Vatican City",
+    "timezone": "UTC+01:00",
+    "currency_code": "EUR"
+  },
+  {
+    "country_code": "VCT",
+    "city_code": "VCT",
+    "city_name": "Kingstown",
+    "country_name": "Saint Vincent and the Grenadines",
+    "timezone": "UTC-04:00",
+    "currency_code": "XCD"
+  },
+  {
+    "country_code": "VEN",
+    "city_code": "VEN",
+    "city_name": "Caracas",
+    "country_name": "Venezuela",
+    "timezone": "UTC-04:00",
+    "currency_code": "VES"
+  },
+  {
+    "country_code": "VGB",
+    "city_code": "VGB",
+    "city_name": "Road Town",
+    "country_name": "British Virgin Islands",
+    "timezone": "UTC-04:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "VIR",
+    "city_code": "VIR",
+    "city_name": "Charlotte Amalie",
+    "country_name": "United States Virgin Islands",
+    "timezone": "UTC-04:00",
+    "currency_code": "USD"
+  },
+  {
+    "country_code": "VNM",
+    "city_code": "VNM",
+    "city_name": "Hanoi",
+    "country_name": "Vietnam",
+    "timezone": "UTC+07:00",
+    "currency_code": "VND"
+  },
+  {
+    "country_code": "VUT",
+    "city_code": "VUT",
+    "city_name": "Port Vila",
+    "country_name": "Vanuatu",
+    "timezone": "UTC+11:00",
+    "currency_code": "VUV"
+  },
+  {
+    "country_code": "WLF",
+    "city_code": "WLF",
+    "city_name": "Mata-Utu",
+    "country_name": "Wallis and Futuna",
+    "timezone": "UTC+12:00",
+    "currency_code": "XPF"
+  },
+  {
+    "country_code": "WSM",
+    "city_code": "WSM",
+    "city_name": "Apia",
+    "country_name": "Samoa",
+    "timezone": "UTC+13:00",
+    "currency_code": "WST"
+  },
+  {
+    "country_code": "YEM",
+    "city_code": "YEM",
+    "city_name": "Sana'a",
+    "country_name": "Yemen",
+    "timezone": "UTC+03:00",
+    "currency_code": "YER"
+  },
+  {
+    "country_code": "ZAF",
+    "city_code": "ZAF",
+    "city_name": "Pretoria",
+    "country_name": "South Africa",
+    "timezone": "UTC+02:00",
+    "currency_code": "ZAR"
+  },
+  {
+    "country_code": "ZMB",
+    "city_code": "ZMB",
+    "city_name": "Lusaka",
+    "country_name": "Zambia",
+    "timezone": "UTC+02:00",
+    "currency_code": "ZMW"
+  },
+  {
+    "country_code": "ZWE",
+    "city_code": "ZWE",
+    "city_name": "Harare",
+    "country_name": "Zimbabwe",
+    "timezone": "UTC+02:00",
+    "currency_code": "ZWL"
   }
 ]
