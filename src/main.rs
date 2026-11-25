@@ -14,6 +14,7 @@
 mod app;
 mod config;
 mod exchange;
+mod http;
 mod map;
 mod reference;
 mod theme;
@@ -27,6 +28,7 @@ use std::time::Duration;
 
 use anyhow::Result;
 use crossterm::{
+    cursor::Show,
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
@@ -39,6 +41,9 @@ use config::Config;
 /// main entry point
 #[tokio::main]
 async fn main() -> Result<()> {
+    // make sure a panic cannot leave the terminal in raw mode
+    install_panic_hook();
+
     // set up terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -69,6 +74,22 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// restore the terminal before the default panic report is printed
+fn install_panic_hook() {
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        // best effort: the panic report matters more than a failed restore
+        let _ = disable_raw_mode();
+        let _ = execute!(
+            io::stdout(),
+            LeaveAlternateScreen,
+            DisableMouseCapture,
+            Show
+        );
+        default_hook(panic_info);
+    }));
 }
 
 /// main event loop

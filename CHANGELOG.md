@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+- Hardened handling of weather and exchange-rate responses, which are untrusted input. Forecast dates must now parse as calendar dates; a malformed date previously crashed the weather panel.
+- Exchange rates must be finite, positive and within a plausible range before they are cached or displayed.
+- Requests are HTTPS-only and response bodies are capped at 256 kB.
+- A panic now restores the terminal before the error is reported.
+- Added tests that feed malformed and extreme API responses to the weather and exchange-rate parsers.
+- Added a GitHub Actions workflow that runs `cargo audit` on pushes, pull requests and weekly.
+
 ## 0.3.3
 - Fixed representative-city timezone handling so generated cities with fixed UTC offsets such as Seoul can be added and saved without `invalid timezone` failures.
 - Made `map.enabled` default to off consistently, including partially specified `[map]` config blocks.
