@@ -3,7 +3,7 @@
 ## Unreleased
 - Hardened handling of weather and exchange-rate responses, which are untrusted input. Forecast dates must now parse as calendar dates; a date containing non-ASCII characters could previously crash the weather panel.
 - Exchange rates must be finite, positive and within a plausible range before they are cached or displayed.
-- Requests are HTTPS-only and response bodies are capped at 256 kB.
+- Requests are HTTPS-only and response bodies are capped at 256 KiB.
 - After a failed exchange-rate fetch, the event loop waits 30 seconds before retrying the same currency pair, instead of retrying on every pass. A change of pair and the five-minute refresh still fetch at once.
 - A panic now restores the terminal before the error is reported.
 - Added tests that feed malformed and extreme API responses to the weather and exchange-rate parsers.
