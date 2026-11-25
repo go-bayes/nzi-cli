@@ -80,14 +80,16 @@ async fn main() -> Result<()> {
 fn install_panic_hook() {
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
-        // best effort: the panic report matters more than a failed restore
-        let _ = disable_raw_mode();
+        // best effort: the panic report matters more than a failed restore.
+        // raw mode goes last, because on windows disabling mouse capture
+        // restores the console mode that was saved while raw mode was on
         let _ = execute!(
             io::stdout(),
             LeaveAlternateScreen,
             DisableMouseCapture,
             Show
         );
+        let _ = disable_raw_mode();
         default_hook(panic_info);
     }));
 }

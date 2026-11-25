@@ -569,6 +569,7 @@ fn weather_from_response(response: &OpenMeteoResponse) -> Result<CurrentWeather>
             .time
             .iter()
             .enumerate()
+            // only the first three days are used, so only they are checked
             .take(3)
             .map(|(i, date)| {
                 // the date is the only free text shown from the response, so
@@ -754,15 +755,16 @@ mod tests {
 
     #[test]
     fn non_ascii_date_is_rejected_without_panicking() {
-        // ten or more bytes with multi-byte characters across the old slice
-        // positions (bytes 5..7 and 8..10), which used to panic in the ui
+        // ten or more bytes with a multi-byte character straddling one of the
+        // old slice positions (bytes 5..7 and 8..10), which panicked in the ui
         for date in [
-            "2026-é1-2é",
+            "2026-1é-2é",
             "2026-1é-26",
             "日本語の日付です",
             "2026-11-2é6",
         ] {
-            assert!(date.len() >= 10 && !date.is_ascii());
+            assert!(date.len() >= 10);
+            assert!([5, 7, 8, 10].iter().any(|&i| !date.is_char_boundary(i)));
             let body = response_with_first_date(&format!("{date:?}"));
             assert!(weather_from_json(&body).is_err(), "accepted {date:?}");
         }

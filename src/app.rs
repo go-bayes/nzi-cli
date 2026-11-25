@@ -81,6 +81,9 @@ impl Focus {
     }
 }
 
+/// wait this long before retrying a failed exchange-rate fetch for the same pair
+const RATE_RETRY_DELAY: Duration = Duration::from_secs(30);
+
 /// main application state
 pub struct App {
     pub config: Config,
@@ -98,6 +101,9 @@ pub struct App {
     // widget states
     pub currency_converter: CurrencyConverter,
     pub time_converter: TimeConverter,
+
+    // currency pair whose last rate fetch failed, and when it may be retried
+    rate_retry: Option<(String, String, Instant)>,
 
     // cached city times
     pub current_city_time: Option<CityTime>,
@@ -454,6 +460,7 @@ impl App {
             weather_service: WeatherService::new(),
             currency_converter,
             time_converter,
+            rate_retry: None,
             current_city_time: None,
             home_city_time: None,
             world_city_times: Vec::new(),
@@ -542,6 +549,7 @@ impl App {
 
         match self.exchange_service.get_rate(&from, &to).await {
             Ok(rate) => {
+                self.rate_retry = None;
                 self.currency_converter.update_rate(rate);
                 self.is_online = true;
                 self.set_status(format!("Rate: 1 {} = {:.4} {}", from, rate, to));
@@ -549,6 +557,9 @@ impl App {
             Err(e) => {
                 self.is_online = false;
                 self.currency_converter.needs_refresh = true;
+                // hold off before retrying this pair, so a failing or hostile
+                // server cannot make the event loop fetch on every pass
+                self.rate_retry = Some((from, to, Instant::now() + RATE_RETRY_DELAY));
                 self.set_status(e.to_string());
             }
         }
@@ -1212,7 +1223,18 @@ impl App {
 
     /// check if currency rate refresh is needed
     pub fn needs_currency_refresh(&self) -> bool {
-        self.currency_converter.needs_rate_refresh()
+        self.currency_converter.needs_rate_refresh() && !self.rate_retry_on_hold()
+    }
+
+    /// true while the current pair's last fetch failed too recently to retry
+    fn rate_retry_on_hold(&self) -> bool {
+        self.rate_retry
+            .as_ref()
+            .is_some_and(|(from, to, retry_at)| {
+                *from == self.currency_converter.from_currency
+                    && *to == self.currency_converter.to_currency
+                    && Instant::now() < *retry_at
+            })
     }
 
     /// handle swap action for focused panel
@@ -2716,5 +2738,28 @@ mod tests {
             app.picker.as_ref().map(|picker| &picker.kind),
             Some(PickerKind::TargetCity)
         ));
+    }
+
+    #[test]
+    fn failed_rate_fetch_is_held_off_for_the_same_pair_only() {
+        let mut app = App::new(Config::default());
+        assert!(app.needs_currency_refresh());
+
+        let from = app.currency_converter.from_currency.clone();
+        let to = app.currency_converter.to_currency.clone();
+        assert_ne!(from, to);
+
+        // a recent failure for this pair blocks an immediate retry
+        app.rate_retry = Some((from.clone(), to.clone(), Instant::now() + RATE_RETRY_DELAY));
+        assert!(!app.needs_currency_refresh());
+
+        // once the hold-off has passed, the retry goes ahead
+        app.rate_retry = Some((from.clone(), to.clone(), Instant::now()));
+        assert!(app.needs_currency_refresh());
+
+        // a different pair is fetched straight away
+        app.rate_retry = Some((from, to, Instant::now() + RATE_RETRY_DELAY));
+        app.currency_converter.swap_currencies();
+        assert!(app.needs_currency_refresh());
     }
 }
