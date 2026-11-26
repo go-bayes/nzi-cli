@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.4
 - Hardened handling of weather and exchange-rate responses, which are untrusted input. Forecast dates must now parse as calendar dates; a date containing non-ASCII characters could previously crash the weather panel.
 - Exchange rates must be finite, positive and within a plausible range before they are cached or displayed.
 - Requests are HTTPS-only and response bodies are capped at 256 KiB.
