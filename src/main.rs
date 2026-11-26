@@ -61,18 +61,30 @@ async fn main() -> Result<()> {
     let result = run_app(&mut terminal, &mut app).await;
 
     // restore terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
+    leave_tui(&mut terminal)?;
 
     if let Err(err) = result {
         eprintln!("Error: {:?}", err);
     }
 
+    Ok(())
+}
+
+/// leave the tui: alternate screen and mouse capture first, raw mode last.
+/// on windows, disabling mouse capture restores the console mode that was
+/// saved while raw mode was on, so disabling raw mode first would leave the
+/// console in raw mode
+fn leave_tui(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
+    let screen = execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    );
+    // always attempt this, even if the step above failed
+    let raw = disable_raw_mode();
+    screen?;
+    raw?;
+    terminal.show_cursor()?;
     Ok(())
 }
 
@@ -166,13 +178,7 @@ async fn open_editor_for_config(
     let config_path = Config::config_path();
 
     // exit alternate screen so editor can use the terminal
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
+    leave_tui(terminal)?;
 
     // spawn editor and wait for it to finish
     let status = Command::new(&editor).arg(&config_path).status();

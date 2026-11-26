@@ -2,6 +2,7 @@
 
 ## Unreleased
 - Exchange-rate responses must now name the requested currency as their `base`. A response quoted against another currency, or with no `base`, is rejected, and the app falls back to the cached rate as for any failed fetch.
+- On exit and when opening the config editor, raw mode is now disabled after mouse capture, and is disabled even if leaving the alternate screen fails. On Windows the earlier order could leave the console in raw mode.
 
 ## 0.3.4
 - Hardened handling of weather and exchange-rate responses, which are untrusted input. Forecast dates must now parse as calendar dates; a date containing non-ASCII characters could previously crash the weather panel.
