@@ -41,67 +41,67 @@ use config::Config;
 /// main entry point
 #[tokio::main]
 async fn main() -> Result<()> {
-    // make sure a panic cannot leave the terminal in raw mode
-    install_panic_hook();
-
-    // set up terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
-    // create app and run
     let mut app = App::load()?;
+    install_panic_hook();
+    let mut session = TuiSession::default();
+    session.enter()?;
+    let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
 
-    // initial data fetch
     app.refresh_exchange_rate().await;
     app.refresh_weather().await;
 
-    let result = run_app(&mut terminal, &mut app).await;
-
-    // restore terminal
-    leave_tui(&mut terminal)?;
-
-    if let Err(err) = result {
-        eprintln!("Error: {:?}", err);
-    }
-
-    Ok(())
+    run_app(&mut terminal, &mut app, &mut session).await?;
+    session.leave()
 }
 
-/// leave the tui: alternate screen and mouse capture first, raw mode last.
-/// on windows, disabling mouse capture restores the console mode that was
-/// saved while raw mode was on, so disabling raw mode first would leave the
-/// console in raw mode
-fn leave_tui(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
-    let screen = execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    );
-    // always attempt this, even if the step above failed
+#[derive(Default)]
+struct TuiSession {
+    active: bool,
+}
+
+impl TuiSession {
+    fn enter(&mut self) -> Result<()> {
+        enable_raw_mode()?;
+        // arm cleanup before the remaining setup can fail
+        self.active = true;
+        execute!(io::stdout(), EnterAlternateScreen, EnableMouseCapture)?;
+        Ok(())
+    }
+
+    fn leave(&mut self) -> Result<()> {
+        if self.active {
+            self.active = false;
+            restore_terminal()?;
+        }
+        Ok(())
+    }
+}
+
+impl Drop for TuiSession {
+    fn drop(&mut self) {
+        // the panic hook restores the terminal before printing the error
+        if !std::thread::panicking() {
+            let _ = self.leave();
+        }
+    }
+}
+
+fn restore_terminal() -> io::Result<()> {
+    let mut stdout = io::stdout();
+    // attempt every step even if writing to the terminal fails. on windows,
+    // disabling mouse capture restores the mode saved while raw mode was on
+    let screen = execute!(stdout, LeaveAlternateScreen);
+    let mouse = execute!(stdout, DisableMouseCapture);
+    let cursor = execute!(stdout, Show);
     let raw = disable_raw_mode();
-    screen?;
-    raw?;
-    terminal.show_cursor()?;
-    Ok(())
+    screen.and(mouse).and(cursor).and(raw)
 }
 
 /// restore the terminal before the default panic report is printed
 fn install_panic_hook() {
     let default_hook = std::panic::take_hook();
     std::panic::set_hook(Box::new(move |panic_info| {
-        // best effort: the panic report matters more than a failed restore.
-        // raw mode goes last, because on windows disabling mouse capture
-        // restores the console mode that was saved while raw mode was on
-        let _ = execute!(
-            io::stdout(),
-            LeaveAlternateScreen,
-            DisableMouseCapture,
-            Show
-        );
-        let _ = disable_raw_mode();
+        let _ = restore_terminal();
         default_hook(panic_info);
     }));
 }
@@ -110,6 +110,7 @@ fn install_panic_hook() {
 async fn run_app(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     app: &mut App,
+    session: &mut TuiSession,
 ) -> Result<()> {
     let tick_rate = Duration::from_millis(100);
     let mut last_data_refresh = std::time::Instant::now();
@@ -148,9 +149,7 @@ async fn run_app(
         if app.needs_edit_config() {
             app.clear_edit_request();
             // temporarily exit TUI to open editor
-            if let Err(e) = open_editor_for_config(terminal, app).await {
-                app.set_status(format!("Editor error: {}", e));
-            }
+            open_editor_for_config(terminal, app, session).await?;
         }
 
         // periodic data refresh (exchange rate + weather)
@@ -173,23 +172,19 @@ async fn run_app(
 async fn open_editor_for_config(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     app: &mut App,
+    session: &mut TuiSession,
 ) -> Result<()> {
     let editor = app.get_editor();
     let config_path = Config::config_path();
 
     // exit alternate screen so editor can use the terminal
-    leave_tui(terminal)?;
+    session.leave()?;
 
     // spawn editor and wait for it to finish
     let status = Command::new(&editor).arg(&config_path).status();
 
     // re-enter TUI mode
-    enable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        EnterAlternateScreen,
-        EnableMouseCapture
-    )?;
+    session.enter()?;
     terminal.hide_cursor()?;
     terminal.clear()?;
 

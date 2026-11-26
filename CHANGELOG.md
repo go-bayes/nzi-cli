@@ -1,6 +1,7 @@
 # Changelog
 
-## Unreleased
+## 0.3.5
+- Invalid configuration now leaves the terminal untouched at startup. If terminal setup, drawing or restoration fails, the app exits with an error and attempts to restore the shell.
 - Exchange-rate responses must now name the requested currency as their `base`. A response quoted against another currency, or with no `base`, is rejected, and the app falls back to the cached rate as for any failed fetch.
 - On exit and when opening the config editor, raw mode is now disabled after mouse capture, and is disabled even if leaving the alternate screen fails. On Windows the earlier order could leave the console in raw mode.
 

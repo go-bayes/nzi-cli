@@ -1,10 +1,12 @@
 [package]
 name = "nzi-cli"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2024"
 description = "New Zealand Around The World - a beautiful TUI connecting NZ to the world"
 authors = ["Joseph A Bulbulia"]
 license = "MIT"
+repository = "https://github.com/go-bayes/nzi-cli"
+include = ["/src/**", "/build.rs", "/data/**", "/README.md", "/CHANGELOG.md", "/images/nzi.png", "/Cargo.lock"]
 autobins = false
 default-run = "nzi"
 

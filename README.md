@@ -17,9 +17,7 @@ Of course, you can get this information from a browser, but it's much nicer from
 
 ## Installation
 
-### If you have Rust, install or update using cargo
-
-Run this: 
+With Rust installed, run this command to install or update `nzi` from GitHub.
 
 ```bash
 cargo install --locked --git https://github.com/go-bayes/nzi-cli
