@@ -2,7 +2,6 @@
 //! handles layout and drawing all widgets
 //! inspired by nzme-cli's high-density, information-rich design
 
-use chrono::NaiveDate;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -1269,12 +1268,8 @@ fn draw_weather_detail(frame: &mut Frame, area: Rect, app: &App) {
                     } else {
                         "🍃"
                     };
-                    // format date as short (e.g., "Dec 10")
-                    let short_date = if day.date.len() >= 10 {
-                        format!("{}-{}", &day.date[5..7], &day.date[8..10])
-                    } else {
-                        day.date.clone()
-                    };
+                    // format date as short month-day (e.g., "12-10")
+                    let short_date = day.date.format("%m-%d").to_string();
                     lines.push(Line::from(vec![
                         Span::styled(
                             format!("  {} ", day_icon),
@@ -1662,16 +1657,7 @@ fn draw_weather_panel_expanded(frame: &mut Frame, area: Rect, app: &App) {
 
             for day in w.forecast.iter().take(3) {
                 // format day header (centred)
-                let day_header = if day.date.len() >= 10 {
-                    let month = &day.date[5..7];
-                    let dom = &day.date[8..10];
-                    let day_name = NaiveDate::parse_from_str(&day.date, "%Y-%m-%d")
-                        .map(|date| date.format("%a").to_string())
-                        .unwrap_or_else(|_| "???".to_string());
-                    format!("{} {} {}", day_name, dom, month_name(month))
-                } else {
-                    day.date.clone()
-                };
+                let day_header = day.date.format("%a %d %b").to_string();
 
                 // day header row (centred above columns)
                 push_grid_line(
@@ -1936,25 +1922,6 @@ mod tests {
             secondary.as_ref().map(|marker| marker.label.as_str()),
             Some("JPN")
         );
-    }
-}
-
-/// convert month number to short name
-fn month_name(month: &str) -> &'static str {
-    match month {
-        "01" => "Jan",
-        "02" => "Feb",
-        "03" => "Mar",
-        "04" => "Apr",
-        "05" => "May",
-        "06" => "Jun",
-        "07" => "Jul",
-        "08" => "Aug",
-        "09" => "Sep",
-        "10" => "Oct",
-        "11" => "Nov",
-        "12" => "Dec",
-        _ => "???",
     }
 }
 

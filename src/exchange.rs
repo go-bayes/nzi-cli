@@ -12,6 +12,33 @@ struct CachedRate {
     last_updated: Instant,
 }
 
+/// bounds for a believable rate between two currencies. real cross rates span
+/// roughly 1e-8 to 1e8, so anything outside these bounds is a bad response
+const MIN_PLAUSIBLE_RATE: f64 = 1e-12;
+const MAX_PLAUSIBLE_RATE: f64 = 1e12;
+
+/// accept only a finite, positive rate within the plausible range
+fn validate_rate(rate: f64) -> Result<f64> {
+    if !rate.is_finite() || !(MIN_PLAUSIBLE_RATE..=MAX_PLAUSIBLE_RATE).contains(&rate) {
+        bail!("exchange rate in response is out of range");
+    }
+    Ok(rate)
+}
+
+/// extract and validate the rate for `to` from an api response
+fn rate_from_response(response: &serde_json::Value, to: &str) -> Result<f64> {
+    let rates = response["rates"]
+        .as_object()
+        .context("invalid response format")?;
+
+    let rate = rates
+        .get(&to.to_uppercase())
+        .and_then(|v| v.as_f64())
+        .context("currency not found in response")?;
+
+    validate_rate(rate)
+}
+
 impl CachedRate {
     fn is_stale(&self) -> bool {
         self.last_updated.elapsed() > Duration::from_secs(600)
@@ -26,14 +53,9 @@ pub struct ExchangeService {
 
 impl ExchangeService {
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
-            .timeout(Duration::from_secs(10))
-            .build()
-            .unwrap_or_default();
-
         Self {
             cache: HashMap::new(),
-            client,
+            client: crate::http::build_client(None),
         }
     }
 
@@ -80,25 +102,11 @@ impl ExchangeService {
             from.to_uppercase()
         );
 
-        let response: serde_json::Value = self
-            .client
-            .get(&url)
-            .send()
+        let response: serde_json::Value = crate::http::get_json(&self.client, &url)
             .await
-            .context("failed to fetch exchange rate")?
-            .json()
-            .await
-            .context("failed to parse exchange rate response")?;
+            .context("failed to fetch exchange rate")?;
 
-        let rates = response["rates"]
-            .as_object()
-            .context("invalid response format")?;
-
-        let to_upper = to.to_uppercase();
-        rates
-            .get(&to_upper)
-            .and_then(|v| v.as_f64())
-            .context("currency not found in response")
+        rate_from_response(&response, to)
     }
 
     /// get fallback rate when offline
@@ -304,5 +312,71 @@ impl CurrencyConverter {
         }
 
         pairs
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn rate_from_json(body: &str, to: &str) -> Result<f64> {
+        let response: serde_json::Value =
+            serde_json::from_str(body).expect("test body should be json");
+        rate_from_response(&response, to)
+    }
+
+    #[test]
+    fn valid_rate_is_accepted() {
+        let rate = rate_from_json(r#"{"base":"NZD","rates":{"USD":0.58}}"#, "usd")
+            .expect("ordinary rate should be accepted");
+        assert_eq!(rate, 0.58);
+    }
+
+    #[test]
+    fn extreme_real_world_rates_are_accepted() {
+        // widest real cross rates are near 1e8 and 1e-8
+        assert!(rate_from_json(r#"{"rates":{"IRR":70612375.87}}"#, "IRR").is_ok());
+        assert!(rate_from_json(r#"{"rates":{"KWD":0.0000000142}}"#, "KWD").is_ok());
+    }
+
+    #[test]
+    fn zero_and_negative_rates_are_rejected() {
+        assert!(rate_from_json(r#"{"rates":{"USD":0}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"rates":{"USD":0.0}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"rates":{"USD":-0.58}}"#, "USD").is_err());
+    }
+
+    #[test]
+    fn absurd_rates_are_rejected() {
+        assert!(rate_from_json(r#"{"rates":{"USD":1e300}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"rates":{"USD":1e-300}}"#, "USD").is_err());
+    }
+
+    #[test]
+    fn non_finite_rates_are_rejected() {
+        assert!(validate_rate(f64::NAN).is_err());
+        assert!(validate_rate(f64::INFINITY).is_err());
+        assert!(validate_rate(f64::NEG_INFINITY).is_err());
+    }
+
+    #[test]
+    fn malformed_responses_are_rejected() {
+        assert!(rate_from_json(r#"{"rates":{"USD":"0.58"}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"rates":{"USD":null}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"rates":{"EUR":0.5}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"rates":[0.58]}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"error":"nope"}"#, "USD").is_err());
+        assert!(rate_from_json(r#"[]"#, "USD").is_err());
+    }
+
+    #[test]
+    fn swapping_a_validated_rate_stays_finite() {
+        let mut converter = CurrencyConverter::default();
+        for rate in [MIN_PLAUSIBLE_RATE, MAX_PLAUSIBLE_RATE] {
+            converter.update_rate(validate_rate(rate).expect("bound should be valid"));
+            converter.swap_currencies();
+            assert!(converter.rate.is_some_and(f64::is_finite));
+            assert!(converter.to_amount.is_finite());
+        }
     }
 }

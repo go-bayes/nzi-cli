@@ -2,6 +2,7 @@
 //! faster than wttr.in with better caching
 
 use anyhow::{Context, Result};
+use chrono::NaiveDate;
 use serde::Deserialize;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
@@ -90,7 +91,7 @@ pub struct PeriodForecast {
 /// daily forecast data with period breakdowns
 #[derive(Debug, Clone)]
 pub struct DayForecast {
-    pub date: String,
+    pub date: NaiveDate,
     pub temp_max: i32,
     pub temp_min: i32,
     pub wind_max: i32,
@@ -482,14 +483,10 @@ pub struct WeatherService {
 
 impl WeatherService {
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
-            .user_agent(format!("nzi-cli/{}", env!("CARGO_PKG_VERSION")))
-            .timeout(Duration::from_secs(10))
-            .build()
-            .unwrap_or_default();
+        let user_agent = format!("nzi-cli/{}", env!("CARGO_PKG_VERSION"));
 
         Self {
-            client,
+            client: crate::http::build_client(Some(user_agent)),
             cache: std::collections::HashMap::new(),
         }
     }
@@ -547,81 +544,87 @@ impl WeatherService {
             lat, lon
         );
 
-        let response: OpenMeteoResponse = self
-            .client
-            .get(&url)
-            .send()
+        let response: OpenMeteoResponse = crate::http::get_json(&self.client, &url)
             .await
-            .context("failed to fetch weather")?
-            .json()
-            .await
-            .context("failed to parse weather response")?;
+            .context("failed to fetch weather")?;
 
-        let current = &response.current;
-
-        // parse hourly data into periods for each day
-        let hourly_periods = if let Some(hourly) = &response.hourly {
-            parse_hourly_to_periods(hourly)
-        } else {
-            Vec::new()
-        };
-
-        // parse 3-day forecast with period breakdowns
-        let forecast = if let Some(daily) = &response.daily {
-            daily
-                .time
-                .iter()
-                .enumerate()
-                .take(3)
-                .map(|(i, date)| {
-                    // get periods for this day
-                    let day_periods = if i < hourly_periods.len() {
-                        hourly_periods[i].clone()
-                    } else {
-                        Vec::new()
-                    };
-
-                    DayForecast {
-                        date: date.clone(),
-                        temp_max: daily
-                            .temperature_2m_max
-                            .get(i)
-                            .map(|t| t.round() as i32)
-                            .unwrap_or(0),
-                        temp_min: daily
-                            .temperature_2m_min
-                            .get(i)
-                            .map(|t| t.round() as i32)
-                            .unwrap_or(0),
-                        wind_max: daily
-                            .wind_speed_10m_max
-                            .get(i)
-                            .map(|w| w.round() as i32)
-                            .unwrap_or(0),
-                        icon: WeatherIcon::from_wmo_code(
-                            daily.weather_code.get(i).copied().unwrap_or(0),
-                        ),
-                        periods: day_periods,
-                    }
-                })
-                .collect()
-        } else {
-            Vec::new()
-        };
-
-        Ok(CurrentWeather {
-            temp_c: current.temperature_2m.round() as i32,
-            feels_like_c: current.apparent_temperature.round() as i32,
-            humidity: current.relative_humidity_2m,
-            wind_kmph: current.wind_speed_10m.round() as i32,
-            wind_dir: wind_direction(current.wind_direction_10m).to_string(),
-            description: weather_description(current.weather_code).to_string(),
-            icon: WeatherIcon::from_wmo_code(current.weather_code),
-            is_day: current.is_day == 1,
-            last_updated: Instant::now(),
-            forecast,
-        })
+        weather_from_response(&response)
     }
+}
+
+/// convert an api response into display data, rejecting malformed values
+fn weather_from_response(response: &OpenMeteoResponse) -> Result<CurrentWeather> {
+    let current = &response.current;
+
+    // parse hourly data into periods for each day
+    let hourly_periods = if let Some(hourly) = &response.hourly {
+        parse_hourly_to_periods(hourly)
+    } else {
+        Vec::new()
+    };
+
+    // parse 3-day forecast with period breakdowns
+    let forecast = if let Some(daily) = &response.daily {
+        daily
+            .time
+            .iter()
+            .enumerate()
+            // only the first three days are used, so only they are checked
+            .take(3)
+            .map(|(i, date)| {
+                // the date is the only free text shown from the response, so
+                // require a real calendar date and never echo the raw string
+                let date = NaiveDate::parse_from_str(date, "%Y-%m-%d")
+                    .ok()
+                    .context("invalid forecast date in weather response")?;
+
+                // get periods for this day
+                let day_periods = if i < hourly_periods.len() {
+                    hourly_periods[i].clone()
+                } else {
+                    Vec::new()
+                };
+
+                Ok(DayForecast {
+                    date,
+                    temp_max: daily
+                        .temperature_2m_max
+                        .get(i)
+                        .map(|t| t.round() as i32)
+                        .unwrap_or(0),
+                    temp_min: daily
+                        .temperature_2m_min
+                        .get(i)
+                        .map(|t| t.round() as i32)
+                        .unwrap_or(0),
+                    wind_max: daily
+                        .wind_speed_10m_max
+                        .get(i)
+                        .map(|w| w.round() as i32)
+                        .unwrap_or(0),
+                    icon: WeatherIcon::from_wmo_code(
+                        daily.weather_code.get(i).copied().unwrap_or(0),
+                    ),
+                    periods: day_periods,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?
+    } else {
+        Vec::new()
+    };
+
+    Ok(CurrentWeather {
+        temp_c: current.temperature_2m.round() as i32,
+        feels_like_c: current.apparent_temperature.round() as i32,
+        humidity: current.relative_humidity_2m,
+        wind_kmph: current.wind_speed_10m.round() as i32,
+        wind_dir: wind_direction(current.wind_direction_10m).to_string(),
+        description: weather_description(current.weather_code).to_string(),
+        icon: WeatherIcon::from_wmo_code(current.weather_code),
+        is_day: current.is_day == 1,
+        last_updated: Instant::now(),
+        forecast,
+    })
 }
 
 /// parse hourly data into period forecasts (4 periods per day for 3 days)
@@ -690,5 +693,173 @@ fn parse_hourly_to_periods(hourly: &OpenMeteoHourly) -> Vec<Vec<PeriodForecast>>
 impl Default for WeatherService {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// a well-formed response, with one placeholder for the first daily date
+    fn response_with_first_date(date: &str) -> String {
+        format!(
+            r#"{{
+                "current": {{
+                    "temperature_2m": 14.6,
+                    "apparent_temperature": 12.2,
+                    "relative_humidity_2m": 71,
+                    "wind_speed_10m": 23.4,
+                    "wind_direction_10m": 315.0,
+                    "weather_code": 2,
+                    "is_day": 1
+                }},
+                "daily": {{
+                    "time": [{date}, "2026-11-27", "2026-11-28"],
+                    "temperature_2m_max": [17.4, 18.1, 16.0],
+                    "temperature_2m_min": [11.2, 12.0, 10.5],
+                    "wind_speed_10m_max": [31.0, 44.2, 18.9],
+                    "weather_code": [2, 61, 3]
+                }}
+            }}"#
+        )
+    }
+
+    fn weather_from_json(body: &str) -> Result<CurrentWeather> {
+        let response: OpenMeteoResponse =
+            serde_json::from_str(body).context("failed to parse weather response")?;
+        weather_from_response(&response)
+    }
+
+    #[test]
+    fn well_formed_response_is_accepted() {
+        let weather = weather_from_json(&response_with_first_date(r#""2026-11-26""#))
+            .expect("well-formed response should be accepted");
+
+        assert_eq!(weather.temp_c, 15);
+        assert_eq!(weather.wind_dir, "NW");
+        assert_eq!(weather.forecast.len(), 3);
+        assert_eq!(
+            weather.forecast[0].date,
+            NaiveDate::from_ymd_opt(2026, 11, 26).expect("date should be valid")
+        );
+        // the two layouts used by the weather panels
+        assert_eq!(
+            weather.forecast[0].date.format("%m-%d").to_string(),
+            "11-26"
+        );
+        assert_eq!(
+            weather.forecast[0].date.format("%a %d %b").to_string(),
+            "Thu 26 Nov"
+        );
+    }
+
+    #[test]
+    fn non_ascii_date_is_rejected_without_panicking() {
+        // ten or more bytes with a multi-byte character straddling one of the
+        // old slice positions (bytes 5..7 and 8..10), which panicked in the ui
+        for date in [
+            "2026-1é-2é",
+            "2026-1é-26",
+            "日本語の日付です",
+            "2026-11-2é6",
+        ] {
+            assert!(date.len() >= 10);
+            assert!([5, 7, 8, 10].iter().any(|&i| !date.is_char_boundary(i)));
+            let body = response_with_first_date(&format!("{date:?}"));
+            assert!(weather_from_json(&body).is_err(), "accepted {date:?}");
+        }
+    }
+
+    #[test]
+    fn malformed_dates_are_rejected() {
+        for date in [
+            r#""""#,
+            r#""2026-11""#,
+            r#""2026-13-45""#,
+            r#""2026-02-30""#,
+            r#""26/11/2026""#,
+            r#""2026-11-26T00:00""#,
+            // json-escaped terminal control sequence
+            r#""\u001b[2J\u001b[31mowned""#,
+        ] {
+            let body = response_with_first_date(date);
+            assert!(weather_from_json(&body).is_err(), "accepted {date}");
+        }
+    }
+
+    #[test]
+    fn wrong_types_are_rejected() {
+        assert!(weather_from_json(&response_with_first_date("20261126")).is_err());
+        assert!(weather_from_json(&response_with_first_date("null")).is_err());
+        assert!(weather_from_json(r#"{"current": "sunny"}"#).is_err());
+        assert!(weather_from_json(r#"{"daily": {}}"#).is_err());
+        assert!(weather_from_json("[]").is_err());
+        assert!(weather_from_json("").is_err());
+    }
+
+    #[test]
+    fn extreme_numbers_do_not_panic() {
+        let body = r#"{
+            "current": {
+                "temperature_2m": 1e300,
+                "apparent_temperature": -1e300,
+                "relative_humidity_2m": 2147483647,
+                "wind_speed_10m": 1e300,
+                "wind_direction_10m": -1e300,
+                "weather_code": -2147483648,
+                "is_day": 7
+            },
+            "daily": {
+                "time": ["2026-11-26"],
+                "temperature_2m_max": [1e300],
+                "temperature_2m_min": [-1e300],
+                "wind_speed_10m_max": [1e300],
+                "weather_code": [999]
+            },
+            "hourly": {
+                "time": [],
+                "temperature_2m": [1e308, 1e308, 1e308, 1e308, 1e308, 1e308],
+                "wind_speed_10m": [1e308, -1e308, 0, 0, 0, 0],
+                "wind_direction_10m": [1e308, -1e308, 0, 0, 0, 0],
+                "weather_code": [0, 0, 0, 0, 0, 0]
+            }
+        }"#;
+
+        let weather = weather_from_json(body).expect("extreme numbers should still parse");
+        // float-to-integer casts saturate instead of wrapping or panicking
+        assert_eq!(weather.temp_c, i32::MAX);
+        assert_eq!(weather.feels_like_c, i32::MIN);
+        assert_eq!(weather.forecast[0].periods[0].temp, i32::MAX);
+        assert_eq!(weather.icon, WeatherIcon::Unknown);
+    }
+
+    #[test]
+    fn mismatched_and_empty_arrays_do_not_panic() {
+        let body = r#"{
+            "current": {
+                "temperature_2m": 10, "apparent_temperature": 10,
+                "relative_humidity_2m": 50, "wind_speed_10m": 5,
+                "wind_direction_10m": 0, "weather_code": 0, "is_day": 0
+            },
+            "daily": {
+                "time": ["2026-11-26", "2026-11-27"],
+                "temperature_2m_max": [],
+                "temperature_2m_min": [1],
+                "wind_speed_10m_max": [],
+                "weather_code": []
+            },
+            "hourly": {
+                "time": [],
+                "temperature_2m": [1, 2, 3],
+                "wind_speed_10m": [1],
+                "wind_direction_10m": [],
+                "weather_code": [1, 2]
+            }
+        }"#;
+
+        let weather = weather_from_json(body).expect("ragged arrays should still parse");
+        assert_eq!(weather.forecast.len(), 2);
+        assert_eq!(weather.forecast[0].temp_max, 0);
+        assert!(weather.forecast[0].periods.is_empty());
     }
 }
