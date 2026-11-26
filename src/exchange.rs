@@ -25,8 +25,17 @@ fn validate_rate(rate: f64) -> Result<f64> {
     Ok(rate)
 }
 
-/// extract and validate the rate for `to` from an api response
-fn rate_from_response(response: &serde_json::Value, to: &str) -> Result<f64> {
+/// extract and validate the rate from `from` to `to` from an api response
+fn rate_from_response(response: &serde_json::Value, from: &str, to: &str) -> Result<f64> {
+    // the rates must be quoted against the requested currency; a response for
+    // another base would be cached and shown under the wrong pair
+    let base = response["base"]
+        .as_str()
+        .context("invalid response format")?;
+    if !base.eq_ignore_ascii_case(from) {
+        bail!("exchange rate response is for a different base currency");
+    }
+
     let rates = response["rates"]
         .as_object()
         .context("invalid response format")?;
@@ -106,7 +115,7 @@ impl ExchangeService {
             .await
             .context("failed to fetch exchange rate")?;
 
-        rate_from_response(&response, to)
+        rate_from_response(&response, from, to)
     }
 
     /// get fallback rate when offline
@@ -319,10 +328,15 @@ impl CurrencyConverter {
 mod tests {
     use super::*;
 
-    fn rate_from_json(body: &str, to: &str) -> Result<f64> {
+    fn rate_for(body: &str, from: &str, to: &str) -> Result<f64> {
         let response: serde_json::Value =
             serde_json::from_str(body).expect("test body should be json");
-        rate_from_response(&response, to)
+        rate_from_response(&response, from, to)
+    }
+
+    /// rate for `to` from a response to a request for NZD
+    fn rate_from_json(body: &str, to: &str) -> Result<f64> {
+        rate_for(body, "NZD", to)
     }
 
     #[test]
@@ -335,21 +349,21 @@ mod tests {
     #[test]
     fn extreme_real_world_rates_are_accepted() {
         // widest real cross rates are near 1e8 and 1e-8
-        assert!(rate_from_json(r#"{"rates":{"IRR":70612375.87}}"#, "IRR").is_ok());
-        assert!(rate_from_json(r#"{"rates":{"KWD":0.0000000142}}"#, "KWD").is_ok());
+        assert!(rate_from_json(r#"{"base":"NZD","rates":{"IRR":70612375.87}}"#, "IRR").is_ok());
+        assert!(rate_from_json(r#"{"base":"NZD","rates":{"KWD":0.0000000142}}"#, "KWD").is_ok());
     }
 
     #[test]
     fn zero_and_negative_rates_are_rejected() {
-        assert!(rate_from_json(r#"{"rates":{"USD":0}}"#, "USD").is_err());
-        assert!(rate_from_json(r#"{"rates":{"USD":0.0}}"#, "USD").is_err());
-        assert!(rate_from_json(r#"{"rates":{"USD":-0.58}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"base":"NZD","rates":{"USD":0}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"base":"NZD","rates":{"USD":0.0}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"base":"NZD","rates":{"USD":-0.58}}"#, "USD").is_err());
     }
 
     #[test]
     fn absurd_rates_are_rejected() {
-        assert!(rate_from_json(r#"{"rates":{"USD":1e300}}"#, "USD").is_err());
-        assert!(rate_from_json(r#"{"rates":{"USD":1e-300}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"base":"NZD","rates":{"USD":1e300}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"base":"NZD","rates":{"USD":1e-300}}"#, "USD").is_err());
     }
 
     #[test]
@@ -361,12 +375,35 @@ mod tests {
 
     #[test]
     fn malformed_responses_are_rejected() {
-        assert!(rate_from_json(r#"{"rates":{"USD":"0.58"}}"#, "USD").is_err());
-        assert!(rate_from_json(r#"{"rates":{"USD":null}}"#, "USD").is_err());
-        assert!(rate_from_json(r#"{"rates":{"EUR":0.5}}"#, "USD").is_err());
-        assert!(rate_from_json(r#"{"rates":[0.58]}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"base":"NZD","rates":{"USD":"0.58"}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"base":"NZD","rates":{"USD":null}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"base":"NZD","rates":{"EUR":0.5}}"#, "USD").is_err());
+        assert!(rate_from_json(r#"{"base":"NZD","rates":[0.58]}"#, "USD").is_err());
         assert!(rate_from_json(r#"{"error":"nope"}"#, "USD").is_err());
         assert!(rate_from_json(r#"[]"#, "USD").is_err());
+    }
+
+    #[test]
+    fn response_for_another_base_is_rejected() {
+        let body = r#"{"base":"USD","rates":{"USD":1,"EUR":0.92}}"#;
+        assert!(rate_for(body, "NZD", "EUR").is_err());
+        assert!(rate_for(body, "USD", "EUR").is_ok());
+    }
+
+    #[test]
+    fn missing_or_malformed_base_is_rejected() {
+        assert!(rate_for(r#"{"rates":{"USD":0.58}}"#, "NZD", "USD").is_err());
+        assert!(rate_for(r#"{"base":null,"rates":{"USD":0.58}}"#, "NZD", "USD").is_err());
+        assert!(rate_for(r#"{"base":["NZD"],"rates":{"USD":0.58}}"#, "NZD", "USD").is_err());
+        assert!(rate_for(r#"{"base":"","rates":{"USD":0.58}}"#, "NZD", "USD").is_err());
+        assert!(rate_for(r#"{"base":"NZD ","rates":{"USD":0.58}}"#, "NZD", "USD").is_err());
+    }
+
+    #[test]
+    fn base_comparison_ignores_case() {
+        let body = r#"{"base":"NZD","rates":{"USD":0.58}}"#;
+        assert!(rate_for(body, "nzd", "USD").is_ok());
+        assert!(rate_for(r#"{"base":"nzd","rates":{"USD":0.58}}"#, "NZD", "USD").is_ok());
     }
 
     #[test]

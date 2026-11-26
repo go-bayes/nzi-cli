@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased
+- Exchange-rate responses must now name the requested currency as their `base`. A response quoted against another currency, or with no `base`, is rejected, and the app falls back to the cached rate as for any failed fetch.
+
 ## 0.3.4
 - Hardened handling of weather and exchange-rate responses, which are untrusted input. Forecast dates must now parse as calendar dates; a date containing non-ASCII characters could previously crash the weather panel.
 - Exchange rates must be finite, positive and within a plausible range before they are cached or displayed.
