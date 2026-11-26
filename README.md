@@ -22,7 +22,7 @@ Of course, you can get this information from a browser, but it's much nicer from
 Run this: 
 
 ```bash
-cargo install --git https://github.com/go-bayes/nzi-cli
+cargo install --locked --git https://github.com/go-bayes/nzi-cli
 ```
 
 ### Install Rust (one-time setup)
